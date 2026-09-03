@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="3600">
+<title>Сквозная воронка: трафик → трипвайер → продажи</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#0f0f0f; --card:#1a1a1a; --border:#2a2a2a; --text:#e8e8e8; --sub:#888;
+    --accent:#00bcd4; --green:#4caf50; --orange:#ff9800; --red:#f44336; --purple:#6c63ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 24px 20px;
+  }
+  h1 { text-align: center; font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: var(--sub); font-size: .85rem; margin-bottom: 18px; }
+
+  .filter-bar { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; margin-bottom:10px; }
+  .filter-label { color:#5a5a5a; font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; margin-right:4px; }
+  .preset-btn {
+    background: var(--card); border: 1px solid var(--border); color: var(--sub);
+    border-radius: 6px; padding: 6px 14px; font-size: .85rem; cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .preset-btn:hover { border-color: var(--accent); color: var(--text); }
+  .preset-btn.active { border-color: var(--accent); color: var(--accent); background:#0d2226; }
+  .date-sep { color: var(--sub); font-size:.85rem; }
+  input[type=date] {
+    background: var(--card); border:1px solid var(--border); color: var(--text);
+    border-radius:6px; padding:5px 10px; font-size:.85rem; cursor:pointer;
+  }
+  input[type=date]:focus { outline:none; border-color: var(--accent); }
+  .src-bar { margin-bottom: 26px; }
+  .src-bar .preset-btn.active { border-color: var(--purple); color:#a9a2ff; background:#16142e; }
+
+  .stat-row { display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
+  .stat {
+    background: var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:14px 24px; text-align:center; min-width:152px;
+  }
+  .stat .val { font-size:1.9rem; font-weight:700; color: var(--accent); }
+  .stat .lbl { font-size:.8rem; color: var(--sub); margin-top:4px; }
+  .stat .hint { font-size:.7rem; color:#5a5a5a; margin-top:2px; }
+
+  .charts { display:flex; flex-direction:column; gap:28px; max-width:1060px; margin:0 auto; }
+  .card { background: var(--card); border:1px solid var(--border); border-radius:12px; padding:20px 24px; }
+  .card h2 {
+    font-size:1rem; margin-bottom:6px; color: var(--text);
+    padding-bottom:10px; border-bottom:1px solid var(--border);
+  }
+  .card .note { font-size:.78rem; color: var(--sub); margin:10px 0 16px; line-height:1.55; }
+  .card .note b { color:#bdbdbd; }
+
+  .tbl { width:100%; border-collapse:collapse; font-size:.85rem; }
+  .tbl th {
+    text-align:right; color: var(--sub); font-weight:600; padding:8px 10px;
+    border-bottom:1px solid var(--border); white-space:nowrap;
+  }
+  .tbl th:first-child { text-align:left; }
+  .tbl td { padding:7px 10px; border-bottom:1px solid #222; text-align:right; white-space:nowrap; }
+  .tbl td:first-child { text-align:left; color: var(--text); }
+  .tbl tr.sec td {
+    background:#0d2226; color: var(--accent); font-weight:600; font-size:.78rem;
+    letter-spacing:.04em; text-transform:uppercase; padding:6px 10px; text-align:left;
+  }
+  .tbl tr.sec.alt td { background:#16142e; color:#a9a2ff; }
+  .good { color: var(--green); font-weight:700; }
+  .warn { color: var(--orange); font-weight:700; }
+  .bad  { color: var(--red); font-weight:700; }
+  .dim  { color:#666; }
+
+  .heat { width:100%; border-collapse:separate; border-spacing:2px; font-size:.78rem; }
+  .heat th { color: var(--sub); font-weight:600; padding:5px 6px; white-space:nowrap; font-size:.72rem; }
+  .heat th.rowh { text-align:left; }
+  .heat td {
+    text-align:center; padding:7px 4px; border-radius:4px; color: var(--text);
+    min-width:52px; font-variant-numeric: tabular-nums;
+  }
+  .heat td.rowh {
+    text-align:left; background:none !important; color: var(--sub);
+    white-space:nowrap; padding-right:10px;
+  }
+  .heat td.empty { background:#151515 !important; color:#3a3a3a; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:.75rem; color: var(--sub); margin-top:12px; }
+  .legend span.box { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:5px; vertical-align:-2px; }
+
+  .footer { text-align:center; color: var(--sub); font-size:.75rem; margin-top:32px; line-height:1.7; }
+  .warnbox {
+    max-width:1060px; margin:0 auto 24px; padding:12px 18px; border-radius:10px;
+    background:#2a1f0d; border:1px solid #4a3a15; color:#d9b366; font-size:.82rem; line-height:1.6;
+  }
+  .empty-note { color:#666; font-size:.85rem; padding:14px 0; text-align:center; }
+</style>
+</head>
+<body>
+
+<h1>Сквозная воронка: трафик → трипвайер → продажи</h1>
+<p class="subtitle">Трипвайер-воронка (Money-Dick + PetRock) → Диагностика → Отдел продаж · Обновлено: 03.09.2026 14:25 МСК</p>
+
+<div class="filter-bar">
+  <span class="filter-label">Период</span>
+  <button class="preset-btn" data-preset="7d">7 дней</button>
+  <button class="preset-btn" data-preset="30d">30 дней</button>
+  <button class="preset-btn active" data-preset="all">Весь период</button>
+  <span class="date-sep">|</span>
+  <input type="date" id="dateFrom">
+  <span class="date-sep">—</span>
+  <input type="date" id="dateTo">
+</div>
+<div class="filter-bar src-bar">
+  <span class="filter-label">Тип трафика</span>
+  <button class="preset-btn active" data-tt="__ALL__">Любой</button>
+  <button class="preset-btn" data-tt="organic">Органика</button>
+  <button class="preset-btn" data-tt="paid">Платный</button>
+  <button class="preset-btn" data-tt="unknown">Без метки</button>
+</div>
+<div class="filter-bar src-bar">
+  <span class="filter-label">Источник</span>
+  <span id="srcButtons" style="display:flex;flex-wrap:wrap;gap:8px"></span>
+</div>
+
+<div id="qualityWarn" class="warnbox" style="display:none"></div>
+
+<div class="stat-row">
+  <div class="stat"><div class="val" id="sLeads">—</div><div class="lbl">Контактов в воронке</div></div>
+  <div class="stat"><div class="val" id="sRead" style="color:var(--accent)">—</div><div class="lbl">Дочитали до конца</div></div>
+  <div class="stat"><div class="val" id="sTw" style="color:var(--orange)">—</div><div class="lbl">Оплатили трипвайер</div></div>
+  <div class="stat"><div class="val" id="sOp" style="color:var(--purple)">—</div><div class="lbl">Дошли до ОП</div><div class="hint">после воронки</div></div>
+  <div class="stat"><div class="val" id="sWon" style="color:var(--green)">—</div><div class="lbl">Купили в ОП</div></div>
+</div>
+<div class="stat-row">
+  <div class="stat"><div class="val" id="sRev" style="color:var(--green)">—</div><div class="lbl">Выручка ОП, атрибутированная</div></div>
+  <div class="stat"><div class="val" id="sRpl" style="color:var(--accent)">—</div><div class="lbl">Выручка на лид воронки</div><div class="hint">RPL, главная метрика</div></div>
+</div>
+
+<div class="charts">
+
+  <div class="card">
+    <h2>1. Трипвайер-воронка — линейный путь</h2>
+    <p class="note">
+      Здесь шаги действительно идут друг за другом: человек не может открыть checkout,
+      не увидев оффер. Это единственная часть схемы, которую корректно читать как воронку.
+    </p>
+    <div style="position:relative;height:400px"><canvas id="funnelChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Пути в отдел продаж — параллельные, а не продолжение воронки</h2>
+    <p class="note">
+      Вход в ОП <b>не является следующим шагом</b> трипвайер-воронки. Большинство контактов
+      попадают туда, не дочитав статью и не проходя диагностику — через саппорт, рассылки,
+      вебинары или прямое обращение. Ниже видно, на каком этапе воронки человек находился
+      в момент, когда оказался в ОП.
+    </p>
+    <table class="tbl"><tbody id="pathBody"></tbody></table>
+    <div style="position:relative;height:300px;margin-top:18px"><canvas id="pathChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Воронка «Диагностика»</h2>
+    <p class="note">
+      Воронка расширена, стадии появились. <b>Show-rate</b> = проведена / слот согласован —
+      теперь измерим. «Клиент не пришёл» считается как достигший согласования слота,
+      но не явившийся, поэтому он в знаменателе show-rate и не в числителе.
+    </p>
+    <div id="diagWrap"></div>
+  </div>
+
+  <div class="card">
+    <h2>4. Проверка причинно-следственной связи</h2>
+    <p class="note">
+      Трафик действительно привёл человека или он уже был в базе? Строки «до воронки» —
+      существующие контакты, их выручку нельзя записывать контенту.
+    </p>
+    <table class="tbl"><tbody id="causalBody"></tbody></table>
+  </div>
+
+  <div class="card">
+    <h2>5. Разрез по источникам трафика</h2>
+    <p class="note">Источник из UTM трипвайер-воронки. «(нет метки)» — потеря атрибуции.</p>
+    <div style="overflow-x:auto"><table class="tbl">
+      <thead><tr>
+        <th style="min-width:140px">Источник</th><th>Контактов</th><th>Дочитали</th>
+        <th>Трипвайер</th><th>Диагностика</th><th>В ОП</th><th>Купили</th>
+        <th>Выручка ОП</th><th>RPL</th>
+      </tr></thead>
+      <tbody id="srcBody"></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>5b. Единица контента: конкретный ролик или креатив</h2>
+    <p class="note">
+      Единица контента лежит в <code>utm_content</code>: для органики это ID видео на YouTube,
+      для платного трафика — ID объявления Meta. <code>utm_term</code> содержит другое —
+      место размещения у органики и ID группы объявлений у Meta. Разрез по конкретному
+      материалу возможен уже сейчас, отдельного поля заводить не нужно. Строки с выборкой
+      меньше четырёх контактов скрыты: на них конверсию считать бессмысленно.
+    </p>
+    <div style="overflow-x:auto"><table class="tbl">
+      <thead><tr>
+        <th style="min-width:140px">utm_content</th><th style="text-align:left">Источник</th>
+        <th style="text-align:left">utm_term</th><th>Контактов</th>
+        <th>Дочитали</th><th>Checkout</th><th>Трипвайер</th><th>CR</th>
+        <th>В ОП</th><th>Первый</th>
+      </tr></thead>
+      <tbody id="termBody"></tbody>
+    </table></div>
+    <p class="note" id="termTail" style="margin-bottom:0"></p>
+  </div>
+
+  <div class="card">
+    <h2>6. Когорты: как недельная когорта проходит воронку</h2>
+    <p class="note">
+      Строка — неделя создания лида трипвайер-воронки, ячейка — доля когорты, дошедшая до этапа.
+      Свежие когорты слабее по правым колонкам не потому, что контент хуже, а потому что
+      <b>ещё не дозрели</b>. А вот левые колонки сравнивать можно сразу — там лага нет.
+      Используйте фильтр по источнику сверху, чтобы отделить платный трафик от органики.
+    </p>
+    <div style="overflow-x:auto"><table class="heat" id="cohortTable"></table></div>
+    <div class="legend">
+      <span><span class="box" style="background:rgba(0,188,212,.10)"></span>0%</span>
+      <span><span class="box" style="background:rgba(0,188,212,.45)"></span>среднее</span>
+      <span><span class="box" style="background:rgba(0,188,212,.93)"></span>максимум</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>6b. Рост конверсии — это микс источников или реальный сдвиг?</h2>
+    <p class="note">
+      Если доля слабого источника падает, общая конверсия растёт сама собой, хотя внутри
+      каждого источника ничего не изменилось. Колонка <b>«ожидаемо по миксу»</b> показывает,
+      какой была бы конверсия недели при неизменных конверсиях источников и только за счёт
+      смены их долей. Значимо лишь <b>отклонение</b>: оно и есть реальный сдвиг.
+      Этот блок считается по всем источникам и не зависит от фильтра сверху.
+    </p>
+    <div style="overflow-x:auto"><table class="tbl">
+      <thead><tr>
+        <th style="min-width:90px">Неделя</th><th>Размер</th><th style="text-align:left">Микс</th>
+        <th>Дочитали, факт</th><th>Ожидаемо по миксу</th><th>Отклонение</th>
+      </tr></thead>
+      <tbody id="mixBody"></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>7. Качество атрибуции</h2>
+    <p class="note">Если доля лидов без источника растёт, остальные цифры перестают быть достоверными.</p>
+    <table class="tbl"><tbody id="qualityBody"></tbody></table>
+  </div>
+
+</div>
+
+<p class="footer">
+  Прототип · amoCRM, четыре воронки склеены по contact_id · единица счёта — контакт, не лид<br>
+  <span id="metaLine"></span>
+</p>
+
+<script>
+const RAW     = [{"ts":1784662767,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784752156,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"{{ad.id}}","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784757592,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784767530,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784786094,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784788767,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784791774,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784787825,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784790853,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784781783,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784796385,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784794577,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"120250859421980071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784798093,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"74ZYHn5V4Wo","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784804806,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352380071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784805066,"st":4,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784806520,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784808861,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352380071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784810527,"st":6,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784775964,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784820944,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784822189,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352380071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784822474,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352360071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784824048,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352380071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784825669,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784828234,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784832271,"st":4,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"9m1DphN7MhQ","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784848086,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352380071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784855310,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888901110071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784857729,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888901180071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784789178,"st":6,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"{{ad.id}}","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784864374,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784878040,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352380071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784882118,"st":2,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888901210071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784885028,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352380071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784888346,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"{{ad.id}}","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784890767,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784896057,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888140480071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784896968,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352380071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784897388,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784899052,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784903385,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784905829,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"9m1DphN7MhQ","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784907899,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784908377,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784904833,"st":12,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888140500071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784915848,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888901170071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784924632,"st":6,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784956852,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784959104,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784960620,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784965952,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784967697,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784968759,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784969477,"st":4,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888901090071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784977428,"st":2,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859318030071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784980994,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888901170071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784985575,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785003227,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784864709,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":1,"won":0,"rev":0,"revb":17900},{"ts":1785037748,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785050829,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888901170071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785055133,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784957646,"st":9,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785056370,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"120250888901120071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785074094,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888140500071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785088863,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785090088,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785092241,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785092118,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785092483,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785092572,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785080499,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"74ZYHn5V4Wo","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785095463,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"120250859421980071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1785098239,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785098565,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888140500071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1785095542,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888901170071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784829115,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785115125,"st":7,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785125496,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785129836,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785136696,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785139526,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785141181,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250856173680071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785144428,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352360071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1785146732,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784901689,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"CDBbclNkFpU","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1785151845,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785139733,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"DAzHwXYjEwc","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":15000},{"ts":1785165190,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785169961,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352360071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785173289,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785174866,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785174840,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785185373,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785188796,"st":4,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785190880,"st":2,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250968896790071","cnt":"120250968962750071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785201762,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785198056,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250968896790071","cnt":"120250968897270071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785214145,"st":0,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785216929,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785220656,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785243854,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785249517,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785302990,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250926772470180","cnt":"120250926772480180","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785305815,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"ZnFDOXl7Q-I","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785311027,"st":4,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785316387,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"ZnFDOXl7Q-I","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785339916,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785355452,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785387412,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"74ZYHn5V4Wo","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785396833,"st":3,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785412981,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784939196,"st":9,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888140500071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785559296,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120251024675090180","cnt":"120251024784000180","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784912721,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1785268735,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784784315,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250856173660071","cnt":"120250859352360071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785834350,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120248265461400243","cnt":"120248265461410243","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785774067,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250599685970481","cnt":"120250600327670481","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785527626,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785428575,"st":7,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785844006,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120248265461400243","cnt":"120248265461410243","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785828426,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250599685970481","cnt":"120250600346650481","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785623254,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"CDBbclNkFpU","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785471846,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785921540,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785592252,"st":2,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120251024675090180","cnt":"120251024784000180","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785524132,"st":2,"fn":"Money-Dick","src":"email","tt":"organic","trm":"(нет метки)","cnt":"flagman_warm","cmp":"reactivation_moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1785838375,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120248265461400243","cnt":"120248265461410243","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785646023,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120251024675090180","cnt":"120251024784000180","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785659124,"st":4,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"74ZYHn5V4Wo","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784975615,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250888140250071","cnt":"120250888901180071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785998537,"st":7,"fn":"Money-Dick","src":"tg","tt":"organic","trm":"test2","cnt":"test","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786002769,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120245803758430582","cnt":"120245804082710582","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786005642,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250456947150356","cnt":"120250457120140356","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786008510,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250456947150356","cnt":"120250457120140356","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786008819,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250456947150356","cnt":"120250457120140356","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786010982,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120245803758430582","cnt":"120245804099750582","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786016574,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120248265461400243","cnt":"120248265461410243","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1786029436,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786058836,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120248265461400243","cnt":"120248266167350243","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786077169,"st":9,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120248265461400243","cnt":"120248266167350243","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786082184,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120248265461400243","cnt":"120248265461410243","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786092433,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786094118,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785799936,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250384874550356","cnt":"120250385351620356","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785490726,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":4,"won":0,"rev":0,"revb":0},{"ts":1785775626,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250599685970481","cnt":"120250600327670481","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1785652740,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120251024675090180","cnt":"120251024784000180","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785604308,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120251024675090180","cnt":"120251024784000180","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785997475,"st":12,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250456947150356","cnt":"120250457120160356","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786110113,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786002882,"st":12,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250456947150356","cnt":"120250456947420356","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786123142,"st":4,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786124876,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"{{ad.id}}","cmp":"zapusk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":4,"won":0,"rev":0,"revb":0},{"ts":1786125418,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"test","cnt":"{{ad.id}}","cmp":"zapusk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786125437,"st":4,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786131741,"st":5,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786161243,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786174659,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786125477,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"{{ad.id}}","cmp":"zapusk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":7,"won":0,"rev":0,"revb":0},{"ts":1785186052,"st":4,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"120250859421980071","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786203120,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"9m1DphN7MhQ","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1786245553,"st":0,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120248265461400243","cnt":"120248266167350243","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786264706,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815802930546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786269132,"st":2,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786272274,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786277937,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786281457,"st":4,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785960577,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"ZnFDOXl7Q-I","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786287893,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786290976,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786291466,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786294536,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249829968230546","cnt":"120249829968250546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786302916,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786305304,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786305569,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786301276,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249751621330546","cnt":"120249815834630546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786309032,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249829968230546","cnt":"120249829968260546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786304155,"st":10,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"120249829968260546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786313279,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249829968230546","cnt":"120249829968260546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786313308,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249829968230546","cnt":"120249829968250546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786314528,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249829968230546","cnt":"120249829968260546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786321840,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120251176230320312","cnt":"120251176230340312","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786324948,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120251176230320312","cnt":"120251176448960312","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786334178,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249834979590546","cnt":"120249834979610546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786335596,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249834979590546","cnt":"120249834979610546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786336584,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250577453260081","cnt":"120250577453280081","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786338254,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250577453260081","cnt":"120250578127700081","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786338787,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120251176230320312","cnt":"120251176448950312","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786342987,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249829968230546","cnt":"120249829968260546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786341381,"st":7,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120251176230320312","cnt":"120251176448950312","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786037969,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786349367,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250577453260081","cnt":"120250578127660081","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786358272,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120250577453260081","cnt":"120250578127700081","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786358665,"st":3,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"{{campaign.id}}","cnt":"120249829968250546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786396823,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"DAzHwXYjEwc","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786427469,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"CDBbclNkFpU","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786482708,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786516395,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786518334,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1786620690,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786658489,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786667917,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"C9mvNSBgwUc","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786715456,"st":9,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":5,"won":0,"rev":0,"revb":0},{"ts":1786725576,"st":14,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786733422,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784822556,"st":4,"fn":"Money-Dick","src":"shashkov_org","tt":"organic","trm":"(нет метки)","cnt":"kak-zarabatyvat-na-kripte-2026","cmp":"web3academy_moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1786800987,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1786834263,"st":7,"fn":"Money-Dick","src":"wblog","tt":"organic","trm":"(нет метки)","cnt":"pop-up","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786863124,"st":7,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786869731,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"DAzHwXYjEwc","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784897343,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":1,"won":1,"rev":99900,"revb":19900},{"ts":1786939486,"st":3,"fn":"Money-Dick","src":"wblog","tt":"organic","trm":"(нет метки)","cnt":"pop-up","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786975371,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786985571,"st":1,"fn":"Money-Dick","src":"wblog","tt":"organic","trm":"(нет метки)","cnt":"pop-up","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787050231,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787086816,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787089348,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"Tva_tP_wXeE","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":1},{"ts":1787135031,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787258544,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"ZnFDOXl7Q-I","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785216598,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786359329,"st":12,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787287537,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1786567486,"st":12,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"CDBbclNkFpU","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":2,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787425794,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787411966,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"2XXmmgMrlH8","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787493072,"st":2,"fn":"Money-Dick","src":"tg","tt":"organic","trm":"(нет метки)","cnt":"flagman_cold","cmp":"reactivation_moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787503538,"st":7,"fn":"Money-Dick","src":"wblog","tt":"organic","trm":"(нет метки)","cnt":"pop-up","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787513207,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787133037,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1784918312,"st":1,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"(нет метки)","cnt":"(нет метки)","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787673043,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787309525,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"CDBbclNkFpU","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787676063,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787676217,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787567904,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787487696,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787677495,"st":3,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787678326,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787678612,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787679371,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":990},{"ts":1787676840,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787676995,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787673225,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787679990,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787679146,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787681069,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":999},{"ts":1787682007,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787676665,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787683019,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787683506,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787681610,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787685607,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787680805,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787687243,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787686217,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787688089,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787686337,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787690298,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787690665,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787686151,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787682148,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":4,"won":0,"rev":0,"revb":229900},{"ts":1787694150,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787695211,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787694618,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787696625,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787709779,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787712496,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":3,"won":0,"rev":0,"revb":990},{"ts":1787715062,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787701926,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787718891,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":3,"won":0,"rev":0,"revb":15000},{"ts":1787721021,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787721088,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787722765,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787722395,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787722229,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787725663,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787726494,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787727666,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787727715,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787727547,"st":6,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":260000},{"ts":1787729054,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787729244,"st":7,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787731091,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787727976,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787733538,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787732751,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787734353,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":3,"won":0,"rev":0,"revb":0},{"ts":1787738658,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787737701,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787739956,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":4,"won":0,"rev":0,"revb":17900},{"ts":1787739009,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787740979,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787742859,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787740827,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787744178,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787740957,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":990},{"ts":1787733864,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787738443,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787748505,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787748978,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787741704,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787749556,"st":14,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787749869,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787751294,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787740863,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787758766,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787751085,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787743902,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787757294,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787764728,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787764495,"st":9,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787764332,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787765728,"st":14,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787766902,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787769128,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787769504,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787766171,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787769222,"st":4,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787770787,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787771418,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787683239,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787772101,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787773196,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787773821,"st":14,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787776667,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":160},{"ts":1787782063,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787786393,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787795440,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787803537,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787807209,"st":14,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787814540,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787685958,"st":14,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787813333,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787727791,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787689806,"st":14,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787829898,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787830815,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787836710,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787695330,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787744519,"st":4,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":19900},{"ts":1786563943,"st":14,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787748354,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787685237,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":5,"won":0,"rev":0,"revb":0},{"ts":1787856366,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787773939,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787857383,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787859094,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787868901,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787897757,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787918405,"st":0,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787822829,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787834792,"st":7,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787923464,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787898915,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":4,"won":0,"rev":0,"revb":990},{"ts":1787929912,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787928261,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787848426,"st":4,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787942071,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1787945249,"st":1,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787954445,"st":14,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787811930,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787855088,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1787963968,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"CDBbclNkFpU","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787675714,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787999119,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787922763,"st":7,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788002602,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788006665,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788008547,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788008511,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788012115,"st":12,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787078190,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1788010955,"st":12,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785900115,"st":12,"fn":"Money-Dick","src":"fb","tt":"paid","trm":"120249834979590546","cnt":"120249834979610546","cmp":"afk","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1788015570,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"C9mvNSBgwUc","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788077972,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788082151,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788090438,"st":1,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787679323,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":3,"won":0,"rev":0,"revb":0},{"ts":1788092323,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788110753,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788113387,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787901083,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"ZnFDOXl7Q-I","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787769324,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788119892,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788118885,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788118964,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"link_in_header","cnt":"header","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788118774,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788135846,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788111658,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"DAzHwXYjEwc","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788166692,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787993633,"st":12,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":1,"dgd":0,"dgn":0,"dgb":"","op":1,"opb":1,"won":0,"rev":0,"revb":10493},{"ts":1788183656,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788070225,"st":14,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788191855,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788200019,"st":2,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788203288,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788207952,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"zKaCIGJtRCI","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788218954,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788218928,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788087287,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"87d0TKo407A","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788252422,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787847977,"st":5,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788267750,"st":14,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"2XXmmgMrlH8","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788268118,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787762652,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1787684627,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788281420,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"9m1DphN7MhQ","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788283254,"st":14,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"9m1DphN7MhQ","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788096549,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":1,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788285032,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788285468,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788270484,"st":14,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":4,"won":0,"rev":0,"revb":0},{"ts":1788299772,"st":3,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788333796,"st":12,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788338460,"st":0,"fn":"Money-Dick","src":"(нет метки)","tt":"unknown","trm":"(нет метки)","cnt":"(нет метки)","cmp":"(нет метки)","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788338858,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788074001,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788101675,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788357699,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"ZnFDOXl7Q-I","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788364341,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788366058,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"ka5rZOBwRug","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788366080,"st":9,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"ka5rZOBwRug","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":0},{"ts":1788373593,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788364947,"st":13,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"DAzHwXYjEwc","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1788382254,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":0,"won":0,"rev":0,"revb":0},{"ts":1785060580,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"fvpkc_fimLk","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":19900},{"ts":1787801049,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788077895,"st":1,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":2,"won":0,"rev":0,"revb":650990},{"ts":1787680239,"st":14,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":1,"dgd":0,"dgn":0,"dgb":"","op":0,"opb":1,"won":0,"rev":0,"revb":0},{"ts":1788257038,"st":7,"fn":"Money-Dick","src":"yt","tt":"organic","trm":"description","cnt":"wTtVBC6kacw","cmp":"moneydick","twr":0,"dg":0,"dgd":-1,"dgn":0,"dgb":"","op":0,"opb":3,"won":0,"rev":0,"revb":0}];
+const DIAG    = [{"depth":0,"ns":0,"br":"","ts":1787862958,"fromContent":1},{"depth":0,"ns":0,"br":"","ts":1788342687,"fromContent":1}];
+const CSTAGES = ["Лид создан","Часть 1 открыта","Часть 1 прочитана","Часть 2 открыта","Часть 2 прочитана","Часть 3 открыта","Часть 3 прочитана","Увидел оффер","Тариф выбран","Checkout открыт","Данные checkout отправлены","Payment intent created","Платёжная форма готова","Оплата не прошла","Оплачено","Успешно реализовано"];
+const DSTAGES = ["Новая заявка","Взят в работу","Контакт установлен","Слот согласован","Диагностика проведена","Выставлен счёт","Успешно реализовано"];
+const META    = {"md_total":438,"pr_total":3,"diag_total":2,"op_total":8015};
+
+const S_READ = 6, S_OFFER = 7, S_CHECKOUT = 9, S_PAID = 14;
+const DIAG_SLOT = 3, DIAG_DONE = 4;
+
+const fmtN = n => Math.round(n).toLocaleString('ru-RU');
+const fmtM = n => n >= 1e6 ? (n/1e6).toFixed(2)+' млн' : n >= 1e3 ? Math.round(n/1e3)+' тыс' : String(Math.round(n));
+const dayISO = ts => new Date(ts*1000).toLocaleDateString('sv-SE', {timeZone:'Europe/Moscow'});
+const pct = (a,b) => b ? (100*a/b).toFixed(1) : '0.0';
+
+Chart.defaults.color = '#888';
+Chart.defaults.borderColor = '#2a2a2a';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+let charts = {};
+function draw(id, cfg) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), cfg);
+}
+
+let activeSrc = '__ALL__';
+
+const weekOf = ts => {
+  const d = new Date(ts*1000);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0,10);
+};
+const weekLabel = w => new Date(w).toLocaleDateString('ru-RU',{day:'2-digit',month:'short'});
+
+/* Разложение прироста: сколько дал сдвиг микса источников, а сколько — реальное изменение.
+   Базовая конверсия источника берётся за весь период, поэтому по нему сумма отклонений ~0. */
+function renderMix(rows) {
+  const isRead = r => r.st >= S_READ;
+  const base = {};
+  const all = {};
+  rows.forEach(r => (all[r.src] = all[r.src] || []).push(r));
+  Object.entries(all).forEach(([s,g]) => base[s] = g.filter(isRead).length / g.length);
+
+  const coh = {};
+  rows.forEach(r => (coh[weekOf(r.ts)] = coh[weekOf(r.ts)] || []).push(r));
+
+  document.getElementById('mixBody').innerHTML = Object.keys(coh).sort().map(w => {
+    const g = coh[w], n = g.length;
+    const act = 100 * g.filter(isRead).length / n;
+    const exp = 100 * g.reduce((s,r) => s + (base[r.src] || 0), 0) / n;
+    const dev = act - exp;
+    const mix = Object.entries(g.reduce((m,r) => (m[r.src]=(m[r.src]||0)+1, m), {}))
+      .sort((a,b) => b[1]-a[1]).slice(0,3)
+      .map(([s,c]) => `${s} ${Math.round(100*c/n)}%`).join(' · ');
+    const cls = Math.abs(dev) < 5 ? 'dim' : dev > 0 ? 'good' : 'bad';
+    const sign = dev > 0 ? '+' : '';
+    const verdict = Math.abs(dev) < 5 ? ' <span class="dim">(микс)</span>' : '';
+    return `<tr><td>${weekLabel(w)}</td><td>${n}</td>
+      <td class="dim" style="text-align:left">${mix}</td>
+      <td>${act.toFixed(0)}%</td><td class="dim">${exp.toFixed(0)}%</td>
+      <td class="${cls}">${sign}${dev.toFixed(0)} п.п.${verdict}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="dim">Нет данных за период</td></tr>';
+}
+
+/* Линейная трипвайер-воронка — только шаги, которые реально следуют друг за другом. */
+const FUNNEL_STEPS = [
+  ['Лид трипвайер-воронки',   r => true],
+  ['Начал читать',     r => r.st >= 1],
+  ['Дочитал до конца', r => r.st >= S_READ],
+  ['Увидел оффер',     r => r.st >= S_OFFER],
+  ['Открыл checkout',  r => r.st >= S_CHECKOUT],
+  ['Оплатил трипвайер',r => r.st >= S_PAID],
+];
+
+function renderAll(rows) {
+  const read = rows.filter(r => r.st >= S_READ).length;
+  const tw   = rows.filter(r => r.st >= S_PAID).length;
+  const opN  = rows.filter(r => r.op > 0).length;
+  const won  = rows.filter(r => r.won > 0).length;
+  const rev  = rows.reduce((s,r) => s + r.rev, 0);
+
+  document.getElementById('sLeads').textContent = fmtN(rows.length);
+  document.getElementById('sRead').textContent  = fmtN(read);
+  document.getElementById('sTw').textContent    = fmtN(tw);
+  document.getElementById('sOp').textContent    = fmtN(opN);
+  document.getElementById('sWon').textContent   = fmtN(won);
+  document.getElementById('sRev').textContent   = (rev >= 1e6 ? fmtM(rev) : fmtN(rev)) + ' ₽';
+  document.getElementById('sRpl').textContent   = fmtN(rows.length ? rev/rows.length : 0) + ' ₽';
+
+  /* ── 1. Линейная воронка ── */
+  const counts = FUNNEL_STEPS.map(([,f]) => rows.filter(f).length);
+  const base = counts[0] || 1;
+  draw('funnelChart', {
+    type: 'bar',
+    data: {
+      labels: FUNNEL_STEPS.map(([n],i) => `${i+1}. ${n}`),
+      datasets: [{
+        data: counts,
+        backgroundColor: counts.map((_,i) => i === 5 ? 'rgba(76,175,80,.85)' : 'rgba(0,188,212,.85)'),
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      indexAxis:'y', maintainAspectRatio:false,
+      plugins: {
+        legend:{display:false},
+        tooltip:{callbacks:{label: c => {
+          const v = c.raw, prev = c.dataIndex ? counts[c.dataIndex-1] : v;
+          return `${fmtN(v)} · ${pct(v,base)}% от старта · ${pct(v,prev)}% от прошлого шага`;
+        }}},
+      },
+      scales:{ x:{beginAtZero:true, grid:{color:'#222'}}, y:{grid:{display:false}} },
+    },
+  });
+
+  /* ── 2. Пути в ОП ── */
+  const inOp    = rows.filter(r => r.op > 0);
+  const viaDiag = inOp.filter(r => r.dg > 0);
+  const noDiag  = inOp.filter(r => r.dg === 0);
+  const twThen  = inOp.filter(r => r.st >= S_PAID);
+  const notRead = inOp.filter(r => r.st < S_READ);
+
+  document.getElementById('pathBody').innerHTML = `
+    <tr class="sec alt"><td colspan="3">Как ${fmtN(inOp.length)} контактов попали в ОП</td></tr>
+    <tr><td>Через воронку «Диагностика»</td><td class="${viaDiag.length?'good':'bad'}">${fmtN(viaDiag.length)}</td>
+        <td class="dim">${pct(viaDiag.length,inOp.length)}% — задуманный путь</td></tr>
+    <tr><td>Минуя диагностику</td><td class="warn">${fmtN(noDiag.length)}</td>
+        <td class="dim">${pct(noDiag.length,inOp.length)}% — параллельный путь</td></tr>
+    <tr><td>Успели оплатить трипвайер до входа в ОП</td><td class="${twThen.length?'good':'bad'}">${fmtN(twThen.length)}</td>
+        <td class="dim">полная цепочка: воронка → трипвайер → ОП</td></tr>
+    <tr><td>Не дочитали статью, но оказались в ОП</td><td class="warn">${fmtN(notRead.length)}</td>
+        <td class="dim">${pct(notRead.length,inOp.length)}% — воронка сработала как касание, а не как путь</td></tr>`;
+
+  const depthLabels = FUNNEL_STEPS.map(([n]) => n);
+  const depthCounts = [
+    inOp.filter(r => r.st < 1).length,
+    inOp.filter(r => r.st >= 1 && r.st < S_READ).length,
+    inOp.filter(r => r.st >= S_READ && r.st < S_OFFER).length,
+    inOp.filter(r => r.st >= S_OFFER && r.st < S_CHECKOUT).length,
+    inOp.filter(r => r.st >= S_CHECKOUT && r.st < S_PAID).length,
+    inOp.filter(r => r.st >= S_PAID).length,
+  ];
+  draw('pathChart', {
+    type:'bar',
+    data:{
+      labels: depthLabels.map(n => 'остановился: '+n.toLowerCase()),
+      datasets:[{ data: depthCounts, backgroundColor:'rgba(108,99,255,.85)', borderRadius:4 }],
+    },
+    options:{
+      indexAxis:'y', maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        title:{display:true, text:'Глубина прохождения воронки у тех, кто дошёл до ОП', color:'#888', font:{size:12}},
+        tooltip:{callbacks:{label: c => `${fmtN(c.raw)} контактов · ${pct(c.raw, inOp.length)}% от дошедших до ОП`}} },
+      scales:{ x:{beginAtZero:true, grid:{color:'#222'}}, y:{grid:{display:false}} },
+    },
+  });
+
+  /* ── 3. Диагностика ── */
+  const dRows = DIAG;
+  const wrap = document.getElementById('diagWrap');
+  if (!dRows.length) {
+    wrap.innerHTML = '<p class="empty-note">В воронке «Диагностика» пока нет заявок.</p>';
+  } else {
+    const dCounts = DSTAGES.map((_, i) => dRows.filter(d => d.depth >= i).length);
+    const slot = dCounts[DIAG_SLOT] || 0;
+    const done = dCounts[DIAG_DONE] || 0;
+    const ns   = dRows.filter(d => d.ns).length;
+    const fromContent = dRows.filter(d => d.fromContent).length;
+    let h = '<table class="tbl"><tbody>';
+    h += '<tr class="sec"><td colspan="3">Прохождение стадий</td></tr>';
+    DSTAGES.forEach((n, i) => {
+      h += `<tr><td>${i+1}. ${n}</td><td>${fmtN(dCounts[i])}</td>
+            <td class="dim">${pct(dCounts[i], dCounts[0])}% от заявок</td></tr>`;
+    });
+    h += '<tr class="sec"><td colspan="3">Ключевые метрики</td></tr>';
+    h += `<tr><td>Show-rate (проведена / слот согласован)</td>
+          <td class="${done && done/Math.max(slot,1) >= .6 ? 'good' : 'warn'}">${pct(done, slot)}%</td>
+          <td class="dim">${fmtN(done)} из ${fmtN(slot)}</td></tr>`;
+    h += `<tr><td>Клиент не пришёл</td><td class="${ns?'bad':'dim'}">${fmtN(ns)}</td><td class="dim">no-show</td></tr>`;
+    h += `<tr><td>Заявок пришло из трипвайер-воронки</td><td>${fmtN(fromContent)}</td>
+          <td class="dim">${pct(fromContent, dRows.length)}% от всех заявок</td></tr>`;
+    h += '</tbody></table>';
+    wrap.innerHTML = h;
+  }
+
+  /* ── 4. Причинность ── */
+  const beforeAny = rows.filter(r => r.opb > 0);
+  const beforeWon = rows.filter(r => r.revb > 0);
+  const revBefore = rows.reduce((s,r) => s + r.revb, 0);
+  document.getElementById('causalBody').innerHTML = `
+    <tr class="sec"><td colspan="3">Засчитывается трафику — сделка ОП создана после лида трипвайер-воронки</td></tr>
+    <tr><td>Контактов, дошедших до ОП после воронки</td><td class="good">${fmtN(opN)}</td>
+        <td class="dim">${pct(opN, base)}% от всех в воронке</td></tr>
+    <tr><td>Из них купили</td><td class="good">${fmtN(won)}</td>
+        <td class="dim">${pct(won, opN)}% от дошедших</td></tr>
+    <tr><td>Выручка, засчитанная трафику</td><td class="good">${fmtN(rev)} ₽</td><td class="dim">—</td></tr>
+    <tr class="sec"><td colspan="3">НЕ засчитывается — контакт был в ОП до входа в воронку</td></tr>
+    <tr><td>Контактов с более ранней сделкой ОП</td><td class="bad">${fmtN(beforeAny.length)}</td>
+        <td class="dim">существующая база</td></tr>
+    <tr><td>Из них покупали до входа в воронку</td><td class="bad">${fmtN(beforeWon.length)}</td><td class="dim">—</td></tr>
+    <tr><td>Выручка, исключённая из атрибуции</td><td class="bad">${fmtN(revBefore)} ₽</td>
+        <td class="dim">была бы приписана трафику без проверки</td></tr>`;
+
+  /* ── 5. Источники ── */
+  const bySrc = {};
+  rows.forEach(r => {
+    const b = bySrc[r.src] = bySrc[r.src] || { n:0, read:0, tw:0, dg:0, op:0, won:0, rev:0 };
+    b.n++;
+    if (r.st >= S_READ) b.read++;
+    if (r.st >= S_PAID) b.tw++;
+    if (r.dg > 0) b.dg++;
+    if (r.op > 0) b.op++;
+    if (r.won > 0) b.won++;
+    b.rev += r.rev;
+  });
+  document.getElementById('srcBody').innerHTML = Object.entries(bySrc)
+    .sort((a,b) => b[1].n - a[1].n)
+    .map(([k,b]) => {
+      const rpl = b.n ? b.rev/b.n : 0;
+      const cls = rpl > 0 ? 'good' : 'dim';
+      return `<tr><td>${k}</td><td>${fmtN(b.n)}</td>
+        <td>${fmtN(b.read)} <span class="dim">${pct(b.read,b.n)}%</span></td>
+        <td>${fmtN(b.tw)}</td><td>${fmtN(b.dg)}</td><td>${fmtN(b.op)}</td>
+        <td class="${b.won?'good':'dim'}">${fmtN(b.won)}</td>
+        <td class="${cls}">${fmtN(b.rev)} ₽</td><td class="${cls}">${fmtN(rpl)} ₽</td></tr>`;
+    }).join('') || '<tr><td colspan="9" class="dim">Нет данных за период</td></tr>';
+
+  /* ── 5b. Единица контента ── */
+  const MIN_TERM = 4;
+  const byTerm = {};
+  rows.forEach(r => (byTerm[r.cnt] = byTerm[r.cnt] || []).push(r));
+  const termRows = Object.entries(byTerm).sort((a,b) => b[1].length - a[1].length);
+  const shown = termRows.filter(([,g]) => g.length >= MIN_TERM);
+  const hidden = termRows.filter(([,g]) => g.length < MIN_TERM);
+  /* Несколько значений в одной ячейке сворачиваются, иначе таблица уезжает за край. */
+  const brief = vals => {
+    const u = [...new Set(vals)];
+    return u.length <= 1 ? u[0] : `${u[0]} +${u.length-1}`;
+  };
+  document.getElementById('termBody').innerHTML = shown.map(([k,g]) => {
+    const n = g.length;
+    const rd = g.filter(r => r.st >= S_READ).length;
+    const co = g.filter(r => r.st >= S_CHECKOUT).length;
+    const tw = g.filter(r => r.st >= S_PAID).length;
+    const opn = g.filter(r => r.op > 0).length;
+    const first = new Date(Math.min(...g.map(r => r.ts))*1000)
+      .toLocaleDateString('ru-RU',{day:'2-digit',month:'short'});
+    const broken = /\{\{/.test(k) ? ' <span class="bad" title="нераскрытый макрос">⚠</span>' : '';
+    return `<tr><td style="font-family:ui-monospace,monospace;font-size:.78rem">${k}${broken}</td>
+      <td class="dim" style="text-align:left">${brief(g.map(r => r.src))}</td>
+      <td class="dim" style="text-align:left;font-size:.75rem;max-width:150px;overflow:hidden;text-overflow:ellipsis"
+          title="${[...new Set(g.map(r => r.trm))].join(', ')}">${brief(g.map(r => r.trm))}</td>
+      <td>${n}</td>
+      <td>${rd} <span class="dim">${pct(rd,n)}%</span></td><td>${co}</td>
+      <td class="${tw?'good':'dim'}">${tw}</td>
+      <td class="${tw?'good':'dim'}">${pct(tw,n)}%</td>
+      <td>${opn}</td><td class="dim">${first}</td></tr>`;
+  }).join('') || '<tr><td colspan="10" class="dim">Нет данных за период</td></tr>';
+  const hidN = hidden.reduce((s,[,g]) => s + g.length, 0);
+  document.getElementById('termTail').textContent = hidden.length
+    ? `Скрыто ${hidden.length} меток с выборкой меньше ${MIN_TERM} контактов — суммарно ${hidN} контактов.`
+    : '';
+
+  /* ── 6. Когорты ── */
+  const coh = {};
+  rows.forEach(r => (coh[weekOf(r.ts)] = coh[weekOf(r.ts)] || []).push(r));
+  const weeks = Object.keys(coh).sort();
+  const cols = [
+    ['Начал читать',  r => r.st >= 1],
+    ['Дочитал',       r => r.st >= S_READ],
+    ['Увидел оффер',  r => r.st >= S_OFFER],
+    ['Checkout',      r => r.st >= S_CHECKOUT],
+    ['Трипвайер',     r => r.st >= S_PAID],
+    ['Диагностика',   r => r.dg > 0],
+    ['В ОП',          r => r.op > 0],
+    ['Купил',         r => r.won > 0],
+  ];
+  let html = '<thead><tr><th class="rowh">Когорта</th><th>Размер</th>' +
+             cols.map(([c]) => `<th>${c}</th>`).join('') + '<th>Выручка / лид</th></tr></thead><tbody>';
+  const maxRpl = Math.max(1, ...weeks.map(w => coh[w].reduce((s,r)=>s+r.rev,0) / coh[w].length));
+  weeks.forEach(w => {
+    const g = coh[w], n = g.length;
+    const rplW = g.reduce((s,r)=>s+r.rev,0) / n;
+    html += `<tr><td class="rowh">${weekLabel(w)}</td><td class="rowh" style="color:var(--text)">${n}</td>`;
+    cols.forEach(([,f]) => {
+      const v = g.filter(f).length, p = n ? v/n : 0;
+      html += v === 0 ? '<td class="empty">·</td>'
+        : `<td style="background:rgba(0,188,212,${(0.10+0.83*p).toFixed(2)})">${(100*p).toFixed(0)}%</td>`;
+    });
+    html += rplW > 0
+      ? `<td style="background:rgba(76,175,80,${(0.10+0.83*rplW/maxRpl).toFixed(2)})">${fmtN(rplW)} ₽</td>`
+      : '<td class="empty">·</td>';
+    html += '</tr>';
+  });
+  document.getElementById('cohortTable').innerHTML = html + '</tbody>';
+
+  /* ── 7. Качество ── */
+  const noSrc = rows.filter(r => r.src === '(нет метки)').length;
+  const noCnt = rows.filter(r => r.cnt === '(нет метки)').length;
+  const broken = rows.filter(r => /\{\{/.test(r.cnt) || /\{\{/.test(r.trm)).length;
+  const pSrc = rows.length ? 100*(1 - noSrc/rows.length) : 0;
+  const pCnt = rows.length ? 100*(1 - noCnt/rows.length) : 0;
+  const cls = p => p >= 90 ? 'good' : p >= 70 ? 'warn' : 'bad';
+  document.getElementById('qualityBody').innerHTML = `
+    <tr><td>Контактов с известным источником</td><td class="${cls(pSrc)}">${pSrc.toFixed(1)}%</td>
+        <td class="dim">${fmtN(rows.length-noSrc)} из ${fmtN(rows.length)}</td></tr>
+    <tr><td>Контактов с заполненным utm_content</td><td class="${cls(pCnt)}">${pCnt.toFixed(1)}%</td>
+        <td class="dim">${fmtN(rows.length-noCnt)} из ${fmtN(rows.length)}</td></tr>
+    <tr><td>Контактов с нераскрытым макросом (<code>{{...}}</code>)</td>
+        <td class="${broken ? 'bad':'good'}">${fmtN(broken)}</td>
+        <td class="dim">${broken ? 'метка не подставилась в рекламном кабинете' : ''}</td></tr>
+    <tr><td>Заявок в воронке «Диагностика»</td>
+        <td class="${DIAG.length < 10 ? 'warn':'good'}">${fmtN(DIAG.length)}</td>
+        <td class="dim">${DIAG.length < 10 ? 'выборка пока мала для выводов' : ''}</td></tr>`;
+
+  const warn = document.getElementById('qualityWarn');
+  const msgs = [];
+  if (pSrc < 90) msgs.push(`у ${(100-pSrc).toFixed(0)}% контактов трипвайер-воронки нет utm_source`);
+  if (DIAG.length < 10) msgs.push(`в воронке «Диагностика» всего ${DIAG.length} заявок — выборка мала`);
+  if (msgs.length) {
+    warn.style.display = 'block';
+    warn.innerHTML = 'Ограничения текущих данных: ' + msgs.join('; ') +
+      '. UTM в трипвайер-воронке и в ОП лежат в разных полях, поэтому склейка идёт по contact_id.';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+/* ── Фильтры ── */
+function byDate() {
+  const f = document.getElementById('dateFrom').value;
+  const t = document.getElementById('dateTo').value;
+  return RAW.filter(r => {
+    const d = dayISO(r.ts);
+    return (!f || d >= f) && (!t || d <= t);
+  });
+}
+let activeTT = '__ALL__';
+
+function apply() {
+  const inRange = byDate();
+  let rows = inRange;
+  if (activeTT  !== '__ALL__') rows = rows.filter(r => r.tt  === activeTT);
+  if (activeSrc !== '__ALL__') rows = rows.filter(r => r.src === activeSrc);
+  renderAll(rows);
+  renderMix(inRange);  // разложение микса всегда по всем источникам
+}
+
+const dates = RAW.map(r => dayISO(r.ts)).sort();
+const minD = dates[0] || dayISO(Date.now()/1000);
+const maxD = dates[dates.length-1] || minD;
+
+/* Кнопки источников строятся из данных, редкие сворачиваются. */
+const srcCounts = {};
+RAW.forEach(r => srcCounts[r.src] = (srcCounts[r.src] || 0) + 1);
+const srcList = Object.entries(srcCounts).sort((a,b) => b[1]-a[1]);
+document.getElementById('srcButtons').innerHTML =
+  `<button class="preset-btn active" data-src="__ALL__">Все (${RAW.length})</button>` +
+  srcList.map(([s,c]) => `<button class="preset-btn" data-src="${s}">${s} (${c})</button>`).join('');
+document.querySelectorAll('#srcButtons .preset-btn').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#srcButtons .preset-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  activeSrc = b.dataset.src;
+  apply();
+});
+
+/* Тип трафика и источник — независимые срезы, поэтому выбор типа сбрасывает источник. */
+document.querySelectorAll('[data-tt]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-tt]').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  activeTT = b.dataset.tt;
+  activeSrc = '__ALL__';
+  document.querySelectorAll('#srcButtons .preset-btn').forEach((x,i) => x.classList.toggle('active', i === 0));
+  apply();
+});
+
+document.querySelectorAll('.filter-bar:not(.src-bar) .preset-btn').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.filter-bar:not(.src-bar) .preset-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  const to = new Date(maxD);
+  let from = new Date(minD);
+  if (b.dataset.preset === '7d')  { from = new Date(to); from.setDate(to.getDate()-6); }
+  if (b.dataset.preset === '30d') { from = new Date(to); from.setDate(to.getDate()-29); }
+  document.getElementById('dateFrom').value = from.toISOString().slice(0,10);
+  document.getElementById('dateTo').value   = maxD;
+  apply();
+});
+document.getElementById('dateFrom').onchange = apply;
+document.getElementById('dateTo').onchange   = apply;
+
+document.getElementById('dateFrom').value = minD;
+document.getElementById('dateTo').value   = maxD;
+document.getElementById('metaLine').innerHTML =
+  `Money-Dick ${META.md_total} лидов · PetRock ${META.pr_total} · Диагностика ${META.diag_total} · ОП ${META.op_total} (с 01.01.2026)<br>` +
+  `Полидовые дашборды по отдельным лендингам: ` +
+  `<a href="https://admin-web3a.github.io/md-dashboard/" style="color:var(--accent)">md-dashboard</a> · ` +
+  `<a href="https://admin-web3a.github.io/petrock-dashboard/" style="color:var(--accent)">petrock-dashboard</a>`;
+apply();
+</script>
+</body>
+</html>
