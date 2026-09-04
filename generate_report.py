@@ -98,11 +98,13 @@ def amo_get(path, params):
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {TOKEN}"})
     try:
         with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
+            body = r.read()
     except urllib.error.HTTPError as e:
         if e.code == 204:
             return {}
         raise
+    # amoCRM отдаёт пустое тело вместо 204, когда в выборке не осталось записей.
+    return json.loads(body) if body.strip() else {}
 
 
 def fetch_leads(pipeline_id, created_from=None):

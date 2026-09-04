@@ -18,15 +18,18 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Generate dashboard
+      - name: Generate dashboards
         env:
           AMO_TOKEN: ${{ secrets.AMO_TOKEN }}
-        run: python generate_report.py
+          REGISTRY_URL: ${{ vars.REGISTRY_URL }}
+        run: |
+          python generate_report.py
+          python generate_content.py
 
       - name: Commit and push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/index.html
+          git add docs/index.html docs/content.html
           git diff --cached --quiet || git commit -m "chore: update dashboard [skip ci]"
           git push
