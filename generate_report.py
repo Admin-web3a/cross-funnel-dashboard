@@ -26,6 +26,7 @@ petrock-dashboard, которые считают лиды. Расхождени�
 import datetime
 import json
 import os
+import re
 import urllib.parse
 import urllib.request
 
@@ -137,6 +138,32 @@ def contact_ids(lead):
     return [c["id"] for c in (lead.get("_embedded") or {}).get("contacts", [])]
 
 
+def tripwire_payment(lead):
+    """Сумма и ценовой вариант оплаты трипвайера.
+
+    Штатное место для суммы — поле price сделки, как в основной воронке ОП.
+    Сейчас оно пустое у всех сделок, а фактическая сумма лежит только в тексте
+    примечания `Moneydick event: paid` (там же price_variant: цена зависит от
+    источника трафика). Поэтому price читается первым, а примечание работает
+    запасным вариантом — когда интеграция начнёт заполнять price, поведение
+    не изменится и запрос примечаний отключать не придётся.
+    """
+    if lead.get("price"):
+        return float(lead["price"]), ""
+    data = amo_get(f"/api/v4/leads/{lead['id']}/notes", {"limit": 100})
+    amount, variant = 0.0, ""
+    for note in (data.get("_embedded") or {}).get("notes", []):
+        text = ((note.get("params") or {}).get("text") or "")
+        if "event: paid" not in text:
+            continue
+        m = re.search(r"amount:\s*([\d.]+)", text)
+        v = re.search(r"price_variant:\s*(\S+)", text)
+        if m and float(m.group(1)) >= amount:
+            amount = float(m.group(1))
+            variant = v.group(1) if v else ""
+    return amount, variant
+
+
 def build():
     md = fetch_leads(PIPE_MD)
     pr = fetch_leads(PIPE_PR)
@@ -151,6 +178,7 @@ def build():
                 continue
             stage = idx_map[l["status_id"]]
             created = l.get("created_at") or 0
+            amount, variant = tripwire_payment(l) if stage >= STAGE_PAID else (0.0, "")
             for cid in contact_ids(l):
                 rec = content.get(cid)
                 if rec is None:
@@ -158,7 +186,7 @@ def build():
                         "first_ts": created, "stage": stage, "funnel": funnel_name,
                         "src": cf(l, utm_map["source"]), "cnt": cf(l, utm_map["content"]),
                         "cmp": cf(l, utm_map["campaign"]), "term": cf(l, utm_map["term"]),
-                        "tw_rev": l.get("price") or 0 if stage >= STAGE_PAID else 0,
+                        "tw_rev": amount, "pv": variant,
                     }
                     continue
                 rec["first_ts"] = min(rec["first_ts"], created)
@@ -167,8 +195,9 @@ def build():
                                  ("cmp", utm_map["campaign"]), ("term", utm_map["term"])):
                     if not rec[key]:
                         rec[key] = cf(l, fid)
-                if stage >= STAGE_PAID:
-                    rec["tw_rev"] += l.get("price") or 0
+                rec["tw_rev"] += amount
+                if variant and not rec.get("pv"):
+                    rec["pv"] = variant
 
     collect(md, MD_IDX, UTM_MD, "Money-Dick")
     collect(pr, PR_IDX, UTM_PR, "PetRock")
@@ -217,6 +246,7 @@ def build():
             "cnt": c["cnt"] or "(нет метки)",
             "cmp": c["cmp"] or "(нет метки)",
             "twr": c["tw_rev"],
+            "pv": c.get("pv") or "",
             "dg": 1 if d else 0,
             "dgd": d["depth"] if d else -1,
             "dgn": d["ns"] if d else 0,

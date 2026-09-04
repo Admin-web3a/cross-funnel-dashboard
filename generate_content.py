@@ -62,11 +62,12 @@ def load_registry():
     rows = list(csv.DictReader(io.StringIO(text)))
     reg = {}
     for row in rows:
-        vid = (row.get("video_id") or "").strip()
-        if not vid:
+        cid = (row.get("content_id") or "").strip()
+        if not cid:
             continue
-        reg[vid] = {k: (row.get(k) or "").strip() for k in
-                    ("title", "channel", "cluster", "function", "expert", "format", "confirmed")}
+        reg[cid] = {k: (row.get(k) or "").strip() for k in
+                    ("title", "platform", "channel", "cluster", "function",
+                     "expert", "format", "confirmed")}
     return reg, source
 
 
@@ -74,13 +75,13 @@ def build():
     journeys, _, meta = core.build()
     reg, source = load_registry()
 
-    # Только органика YouTube: платный трафик живёт в другом отчёте.
+    # Вся органика: YouTube, Telegram-канал, блог. Платный трафик — в сквозной
+    # воронке, здесь он только зашумил бы сравнение единиц контента.
     items = {}
     for j in journeys:
-        if j["src"] != "yt":
+        if j["tt"] != "organic":
             continue
-        vid = j["cnt"]
-        items.setdefault(vid, []).append(j)
+        items.setdefault(j["cnt"], []).append(j)
 
     videos = []
     for vid, group in items.items():
@@ -89,6 +90,8 @@ def build():
         videos.append({
             "id": vid,
             "title": r.get("title") or "",
+            "platform": r.get("platform") or "",
+            "src": sorted({g["src"] for g in group})[0],
             "channel": r.get("channel") or "",
             "cluster": r.get("cluster") or "",
             "func": r.get("function") or "",

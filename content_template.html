@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Контент-дашборд: ролики и кластеры</title>
+<title>Контент-дашборд: единицы контента и кластеры</title>
 <style>
   :root {
     --bg:#0f0f0f; --card:#1a1a1a; --border:#2a2a2a; --text:#e8e8e8; --sub:#888;
@@ -67,26 +67,27 @@
 </head>
 <body>
 
-<h1>Контент-дашборд: ролики и кластеры</h1>
+<h1>Контент-дашборд: единицы контента и кластеры</h1>
 <p class="subtitle">
-  YouTube-органика → трипвайер-воронка → продажи · Обновлено: __UPDATED__ ·
+  Органический контент → трипвайер-воронка → продажи · Обновлено: __UPDATED__ ·
   <a href="index.html">← сквозная воронка</a>
 </p>
 
 <div id="stageWarn" class="warnbox"></div>
 
 <div class="stat-row">
-  <div class="stat"><div class="val" id="sVideos">—</div><div class="lbl">Роликов с трафиком</div></div>
-  <div class="stat"><div class="val" id="sLeads">—</div><div class="lbl">Лидов с YouTube</div></div>
+  <div class="stat"><div class="val" id="sVideos">—</div><div class="lbl">Единиц контента</div></div>
+  <div class="stat"><div class="val" id="sLeads">—</div><div class="lbl">Лидов с органики</div></div>
   <div class="stat"><div class="val" id="sTw" style="color:var(--orange)">—</div><div class="lbl">Оплат трипвайера</div></div>
+  <div class="stat"><div class="val" id="sTwRev" style="color:var(--orange)">—</div><div class="lbl">Выручка трипвайера</div></div>
   <div class="stat"><div class="val" id="sRev" style="color:var(--green)">—</div><div class="lbl">Выручка ОП</div></div>
-  <div class="stat"><div class="val" id="sRpl" style="color:var(--purple)">—</div><div class="lbl">Выручка ОП на ролик</div></div>
+  <div class="stat"><div class="val" id="sRpl" style="color:var(--purple)">—</div><div class="lbl">Выручка всего на единицу</div></div>
 </div>
 
 <div class="charts">
 
   <div class="card">
-    <h2>1. Ролики</h2>
+    <h2>1. Единицы контента</h2>
     <p class="note">
       Ключ склейки — <code>video_id</code> из <code>utm_content</code>. Кластер и функция
       берутся из справочника, а не из метки: метка после публикации неизменна, а
@@ -96,9 +97,9 @@
     </p>
     <div style="overflow-x:auto"><table class="tbl">
       <thead><tr>
-        <th class="l">Ролик</th><th class="l">Кластер</th><th class="l">Функция</th>
+        <th class="l">Единица контента</th><th class="l">Площадка</th><th class="l">Кластер</th><th class="l">Функция</th>
         <th>Лидов</th><th>Дочитали</th><th>Checkout</th><th>Трипвайер</th><th>CR</th>
-        <th>В ОП</th><th>Выручка ОП</th><th>Просмотры</th><th>₽/1000</th>
+        <th>Выручка ТВ</th><th>В ОП</th><th>Выручка ОП</th><th>Просмотры</th><th>₽/1000</th>
       </tr></thead>
       <tbody id="videoBody"></tbody>
     </table></div>
@@ -113,8 +114,8 @@
     </p>
     <div style="overflow-x:auto"><table class="tbl">
       <thead><tr>
-        <th class="l">Кластер</th><th>Роликов</th><th>Лидов</th><th>Лидов на ролик</th>
-        <th>Дочитали</th><th>Трипвайер</th><th>CR</th><th>Выручка</th><th>Выручка на ролик</th>
+        <th class="l">Кластер</th><th>Единиц</th><th>Лидов</th><th>Лидов на единицу</th>
+        <th>Дочитали</th><th>Трипвайер</th><th>CR</th><th>Выручка</th><th>Выручка на единицу</th>
       </tr></thead>
       <tbody id="clusterBody"></tbody>
     </table></div>
@@ -128,7 +129,7 @@
     </p>
     <div style="overflow-x:auto"><table class="tbl">
       <thead><tr>
-        <th class="l">Функция</th><th>Роликов</th><th>Лидов</th><th>Дочитали</th>
+        <th class="l">Функция</th><th>Единиц</th><th>Лидов</th><th>Дочитали</th>
         <th>Трипвайер</th><th>CR</th><th>Выручка</th>
       </tr></thead>
       <tbody id="funcBody"></tbody>
@@ -174,19 +175,20 @@ const pct  = (a,b) => b ? (100*a/b).toFixed(1) : '0.0';
 const esc  = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 const totals = VIDEOS.reduce((a,v) => ({
-  n: a.n + v.n, tw: a.tw + v.tw, rev: a.rev + v.rev + v.twRev,
-}), {n:0, tw:0, rev:0});
+  n: a.n + v.n, tw: a.tw + v.tw, twRev: a.twRev + v.twRev, rev: a.rev + v.rev,
+}), {n:0, tw:0, twRev:0, rev:0});
 
 document.getElementById('sVideos').textContent = fmtN(VIDEOS.length);
 document.getElementById('sLeads').textContent  = fmtN(totals.n);
 document.getElementById('sTw').textContent     = fmtN(totals.tw);
+document.getElementById('sTwRev').textContent  = fmtN(totals.twRev) + ' ₽';
 document.getElementById('sRev').textContent    = fmtN(totals.rev) + ' ₽';
 document.getElementById('sRpl').textContent    =
-  fmtN(VIDEOS.length ? totals.rev / VIDEOS.length : 0) + ' ₽';
+  fmtN(VIDEOS.length ? (totals.rev + totals.twRev) / VIDEOS.length : 0) + ' ₽';
 
-/* ── 1. Ролики ── */
+/* ── 1. Единицы контента ── */
 document.getElementById('videoBody').innerHTML = VIDEOS.map(v => {
-  const rev = v.rev + v.twRev;
+  const rev = v.rev;
   const cl = v.cluster
     ? `<span class="tag">${esc(CLUSTERS[v.cluster] || v.cluster)}</span>`
     : '<span class="tag none">не задан</span>';
@@ -197,16 +199,18 @@ document.getElementById('videoBody').innerHTML = VIDEOS.map(v => {
   return `<tr>
     <td class="l"><div class="ttl" title="${esc(v.title)}">${title}</div>
         <div class="vid">${esc(v.id)}</div></td>
+    <td class="l"><span class="dim">${esc(v.platform || v.src)}</span></td>
     <td class="l">${cl}</td><td class="l">${fn}</td>
     <td>${fmtN(v.n)}</td>
     <td>${fmtN(v.read)} <span class="dim">${pct(v.read,v.n)}%</span></td>
     <td>${fmtN(v.checkout)}</td>
     <td class="${v.tw?'good':'dim'}">${fmtN(v.tw)}</td>
     <td class="${v.tw?'good':'dim'}">${pct(v.tw,v.n)}%</td>
+    <td class="${v.twRev?'warn':'dim'}">${fmtN(v.twRev)} ₽</td>
     <td>${fmtN(v.op)}</td>
     <td class="${rev?'good':'dim'}">${fmtN(rev)} ₽</td>
     <td class="na">—</td><td class="na">—</td></tr>`;
-}).join('') || '<tr><td colspan="12" class="dim">Нет данных</td></tr>';
+}).join('') || '<tr><td colspan="14" class="dim">Нет данных</td></tr>';
 
 /* ── Агрегация по произвольному ключу ── */
 function aggregate(keyFn, names, minLeads) {
@@ -249,7 +253,7 @@ document.getElementById('funcBody').innerHTML =
 /* ── 4. Раскрытие на дистанции ── */
 const maxWeeks = Math.min(8, Math.max(1, ...VIDEOS.map(v =>
   Math.ceil((Math.max(...v.leads.map(l => l.ts)) - v.first) / WEEK) + 1)));
-let html = '<thead><tr><th class="l">Ролик</th><th>Всего</th>' +
+let html = '<thead><tr><th class="l">Единица контента</th><th>Всего</th>' +
   Array.from({length: maxWeeks}, (_,i) => `<th>нед. ${i+1}</th>`).join('') + '</tr></thead><tbody>';
 const peak = Math.max(1, ...VIDEOS.flatMap(v => {
   const b = Array(maxWeeks).fill(0);
@@ -276,10 +280,10 @@ const noReg     = VIDEOS.filter(v => !v.known);
 let todo = '';
 const row = (label, val, cls, hint) =>
   `<tr><td class="l">${label}</td><td class="${cls}">${val}</td><td class="dim">${hint}</td></tr>`;
-todo += row('Роликов без кластера', noCluster.length,
+todo += row('Единиц контента без кластера', noCluster.length,
   noCluster.length ? 'warn' : 'good',
   noCluster.length ? noCluster.map(v => v.id).join(', ') : 'все размечены');
-todo += row('Роликов, которых нет в справочнике', noReg.length,
+todo += row('Единиц контента вне справочника', noReg.length,
   noReg.length ? 'bad' : 'good',
   noReg.length ? noReg.map(v => v.id).join(', ') : '—');
 const twNoPrice = VIDEOS.reduce((s,v) => s + (v.twRev === 0 ? v.tw : 0), 0);
@@ -287,7 +291,7 @@ todo += row('Оплат трипвайера без суммы в CRM', twNoPric
   'поле price у сделки пустое — выручку трипвайера из CRM посчитать нельзя');
 todo += row('Классификаций, не подтверждённых вручную', META.unconfirmed,
   META.unconfirmed ? 'warn' : 'good', 'колонка confirmed в справочнике');
-todo += row('Роликов в справочнике без единого лида', SILENT.length,
+todo += row('Записей справочника без единого лида', SILENT.length,
   SILENT.length ? 'warn' : 'dim',
   SILENT.length ? SILENT.map(s => s.title || s.id).join('; ') : '—');
 document.getElementById('todoBody').innerHTML = todo;
@@ -299,12 +303,12 @@ if (META.unconfirmed) msgs.push(
   `и ещё не подтверждены — это заготовка для обсуждения, а не факт`);
 msgs.push('колонки просмотров пустые: YouTube Analytics API не подключён (этап 2)');
 const thin = VIDEOS.filter(v => v.n < 20).length;
-if (thin) msgs.push(`у ${thin} из ${VIDEOS.length} роликов меньше 20 лидов — по ним выводы делать рано`);
+if (thin) msgs.push(`у ${thin} из ${VIDEOS.length} единиц контента меньше 20 лидов — по ним выводы делать рано`);
 document.getElementById('stageWarn').innerHTML = 'Ограничения этапа 1: ' + msgs.join('; ') + '.';
 
 document.getElementById('regSrc').textContent = META.registry_source + ` (${META.registry_size} записей)`;
 document.getElementById('metaLine').textContent =
-  `Учитывается только органика YouTube (utm_source=yt). Платный трафик — в сквозной воронке.`;
+  `Учитывается вся органика: YouTube, Telegram, блог. Платный трафик — в сквозной воронке.`;
 </script>
 </body>
 </html>
