@@ -1,21 +1,15 @@
-content_id,title,platform,channel,cluster,function,expert,format,confirmed
-wTtVBC6kacw,"Все, что нужно знать о стейблкоинах за 86 минут",youtube,CryptoInside,beginner,authority,Иван,long,no
-zKaCIGJtRCI,"Как работают DEX, AMM и пулы ликвидности для новичков",youtube,CryptoInside,cashflow,authority,Иван,long,no
-87d0TKo407A,"Самое скучное видео про крипту, которое сэкономит тебе деньги",youtube,CryptoInside,beginner,belief_shift,Иван,long,no
-fvpkc_fimLk,"Топ перспективных криптовалют для роста в 2026",youtube,CryptoInside,beginner,discovery,Иван,long,no
-CDBbclNkFpU,"Как я путешествую в 10 раз дешевле всех остальных",youtube,CryptoInside,offtopic,discovery,Иван,long,no
-ZnFDOXl7Q-I,"Как Wi-Fi следит за тобой? | Эдвард Сноуден",youtube,CryptoInside,offtopic,discovery,Иван,long,no
-9m1DphN7MhQ,"Вас заставили поверить, что активы нужно продавать",youtube,CryptoInside,capital,belief_shift,Иван,long,no
-DAzHwXYjEwc,"Как криптокошельки незаметно съедают ТВОИ деньги",youtube,CryptoInside,beginner,belief_shift,Иван,long,no
-74ZYHn5V4Wo,"Какой криптокошелек выбрать?",youtube,CryptoInside,beginner,discovery,Иван,long,no
-C9mvNSBgwUc,"Ai заставил меня продать свои BTC, чтобы выйти на пенсию",youtube,CryptoInside,capital,belief_shift,Иван,long,no
-2XXmmgMrlH8,"БИТКОИН заменит не только золото, но и ЭТОТ рынок в $345 ТРИЛЛИОНОВ долларов",youtube,CryptoInside,capital,belief_shift,Иван,long,no
-ka5rZOBwRug,"Мой опыт инвестиций: Жесткие выводы после 10 лет",youtube,CryptoInside,capital,authority,Иван,long,no
-Tva_tP_wXeE,"Не бери ипотеку! Ты можешь купить 2-3 квартиры за наличку без долгов и банков",youtube,CryptoInside,capital,belief_shift,Иван,long,no
-header,"Ссылка в шапке канала",youtube,CryptoInside,,,,placement,no
-03092026,"Пост в Telegram-канале от 03.09.2026",telegram,,,,,post,no
-pop-up,"Поп-ап на блоге",blog,,,,,placement,no
-test,"Тестовая ссылка",telegram,,,,,test,no
-flagman_cold,"Реактивация: холодная база флагмана",telegram,,,,,mailing,no
-flagman_warm,"Реактивация: тёплая база флагмана",telegram,,,,,mailing,no
-kak-zarabatyvat-na-kripte-2026,"Статья: как зарабатывать на крипте 2026",blog,,,,,article,no
+content_id,cluster,function,expert,confirmed,note
+wTtVBC6kacw,beginner,authority,Иван,no,
+zKaCIGJtRCI,cashflow,authority,Иван,no,
+87d0TKo407A,beginner,belief_shift,Иван,no,
+fvpkc_fimLk,beginner,discovery,Иван,no,
+CDBbclNkFpU,offtopic,discovery,Иван,no,
+ZnFDOXl7Q-I,offtopic,discovery,Иван,no,
+9m1DphN7MhQ,capital,belief_shift,Иван,no,
+DAzHwXYjEwc,beginner,belief_shift,Иван,no,
+74ZYHn5V4Wo,beginner,discovery,Иван,no,
+C9mvNSBgwUc,capital,belief_shift,Иван,no,
+2XXmmgMrlH8,capital,belief_shift,Иван,no,
+ka5rZOBwRug,capital,authority,Иван,no,
+Tva_tP_wXeE,capital,belief_shift,Иван,no,
+header,,,,no,Ссылка в шапке канала — не ролик

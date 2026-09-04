@@ -28,6 +28,8 @@
     transition: border-color .15s, color .15s;
   }
   .preset-btn:hover { border-color: var(--accent); color: var(--text); }
+  #monthQuick { background:#161616; border:1px solid var(--border); color:var(--text);
+    padding:5px 8px; border-radius:8px; font-size:.78rem; font-family:inherit; }
   .preset-btn.active { border-color: var(--accent); color: var(--accent); background:#0d2226; }
   .date-sep { color: var(--sub); font-size:.85rem; }
   input[type=date] {
@@ -107,6 +109,7 @@
   <button class="preset-btn" data-preset="7d">7 дней</button>
   <button class="preset-btn" data-preset="30d">30 дней</button>
   <button class="preset-btn active" data-preset="all">Весь период</button>
+  <select id="monthQuick"></select>
   <span class="date-sep">|</span>
   <input type="date" id="dateFrom">
   <span class="date-sep">—</span>
@@ -640,6 +643,7 @@ document.querySelectorAll('[data-tt]').forEach(b => b.onclick = () => {
 document.querySelectorAll('.filter-bar:not(.src-bar) .preset-btn').forEach(b => b.onclick = () => {
   document.querySelectorAll('.filter-bar:not(.src-bar) .preset-btn').forEach(x => x.classList.remove('active'));
   b.classList.add('active');
+  document.getElementById('monthQuick').value = '';
   const to = new Date(maxD);
   let from = new Date(minD);
   if (b.dataset.preset === '7d')  { from = new Date(to); from.setDate(to.getDate()-6); }
@@ -650,6 +654,36 @@ document.querySelectorAll('.filter-bar:not(.src-bar) .preset-btn').forEach(b => 
 });
 document.getElementById('dateFrom').onchange = apply;
 document.getElementById('dateTo').onchange   = apply;
+
+/* Быстрый выбор месяца. Список строится по фактическому диапазону данных,
+   чтобы не предлагать месяцы, за которые лидов заведомо нет. */
+(function buildMonths() {
+  const sel = document.getElementById('monthQuick');
+  const names = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль',
+                 'Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const first = new Date(minD + 'T00:00:00'), last = new Date(maxD + 'T00:00:00');
+  sel.innerHTML = '<option value="">Месяц…</option>';
+  const months = [];
+  let d = new Date(first.getFullYear(), first.getMonth(), 1);
+  while (d <= last) { months.unshift(new Date(d)); d.setMonth(d.getMonth()+1); }
+  months.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m.getFullYear() + '-' + String(m.getMonth()+1).padStart(2,'0');
+    o.textContent = names[m.getMonth()] + ' ' + m.getFullYear();
+    sel.appendChild(o);
+  });
+  sel.onchange = () => {
+    if (!sel.value) return;
+    document.querySelectorAll('.filter-bar:not(.src-bar) .preset-btn')
+            .forEach(x => x.classList.remove('active'));
+    const [y, mo] = sel.value.split('-').map(Number);
+    const pad = n => String(n).padStart(2,'0');
+    document.getElementById('dateFrom').value = `${y}-${pad(mo)}-01`;
+    document.getElementById('dateTo').value   =
+      `${y}-${pad(mo)}-${pad(new Date(y, mo, 0).getDate())}`;
+    apply();
+  };
+})();
 
 document.getElementById('dateFrom').value = minD;
 document.getElementById('dateTo').value   = maxD;

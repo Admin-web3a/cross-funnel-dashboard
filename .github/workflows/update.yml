@@ -19,9 +19,10 @@ jobs:
           python-version: "3.12"
 
       - name: Generate dashboards
-        env:
-          AMO_TOKEN: ${{ secrets.AMO_TOKEN }}
-          REGISTRY_URL: ${{ vars.REGISTRY_URL }}
+          env:
+            AMO_TOKEN: ${{ secrets.AMO_TOKEN }}
+            YT_API_KEY: ${{ secrets.YT_API_KEY }}
+            REGISTRY_URL: ${{ vars.REGISTRY_URL }}
         run: |
           python generate_report.py
           python generate_content.py

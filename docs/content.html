@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Контент-дашборд: единицы контента и кластеры</title>
+<title>Контент-дашборд: ролики и кластеры</title>
 <style>
   :root {
     --bg:#0f0f0f; --card:#1a1a1a; --border:#2a2a2a; --text:#e8e8e8; --sub:#888;
@@ -15,97 +15,143 @@
     font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   h1 { text-align:center; font-size:1.5rem; margin-bottom:4px; }
-  .subtitle { text-align:center; color:var(--sub); font-size:.85rem; margin-bottom:20px; }
+  .subtitle { text-align:center; color:var(--sub); font-size:.85rem; margin-bottom:16px; }
   .subtitle a { color:var(--accent); text-decoration:none; }
+
+  .filter-bar { display:flex; flex-wrap:wrap; justify-content:center; align-items:center;
+                gap:8px; margin-bottom:10px; }
+  .filter-label { font-size:.72rem; text-transform:uppercase; letter-spacing:.06em;
+                  color:var(--sub); font-weight:700; margin-right:2px; }
+  .filter-sep { width:1px; height:18px; background:var(--border); margin:0 6px; }
+  .preset-btn {
+    background:#161616; border:1px solid var(--border); color:var(--sub);
+    padding:5px 12px; border-radius:14px; font-size:.78rem; cursor:pointer;
+    font-family:inherit; transition:.12s;
+  }
+  .preset-btn:hover { border-color:var(--accent); color:var(--text); }
+  .preset-btn.active { border-color:var(--accent); color:var(--accent); background:#0d2226; }
+  .ch-bar .preset-btn.active { border-color:var(--purple); color:#a9a2ff; background:#16142e; }
+  .filter-bar input[type=date], .filter-bar select {
+    background:#161616; border:1px solid var(--border); color:var(--text);
+    padding:5px 8px; border-radius:8px; font-size:.78rem; font-family:inherit;
+  }
+  #applyBtn { border-color:var(--accent); color:var(--accent); }
+  .range-note { text-align:center; color:var(--sub); font-size:.75rem; margin-bottom:18px; }
 
   .stat-row { display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
   .stat { background:var(--card); border:1px solid var(--border); border-radius:10px;
-          padding:14px 24px; text-align:center; min-width:150px; }
-  .stat .val { font-size:1.9rem; font-weight:700; color:var(--accent); }
-  .stat .lbl { font-size:.8rem; color:var(--sub); margin-top:4px; }
+          padding:14px 22px; text-align:center; min-width:142px; }
+  .stat .val { font-size:1.8rem; font-weight:700; color:var(--accent); }
+  .stat .lbl { font-size:.78rem; color:var(--sub); margin-top:4px; }
 
   .charts { display:flex; flex-direction:column; gap:28px; max-width:1180px; margin:0 auto; }
   .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px 24px; }
-  #videoBody td, .card h2 + .note + div .tbl th { font-size:.8rem; }
-  .tag { font-size:.66rem !important; padding:2px 5px !important; }
-  #videoBody td:nth-child(3) { max-width:136px; }
-  #videoBody td:nth-child(3) .tag { display:inline-block; max-width:126px; overflow:hidden;
-    text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
   .card h2 { font-size:1rem; margin-bottom:6px; padding-bottom:10px; border-bottom:1px solid var(--border); }
   .card .note { font-size:.78rem; color:var(--sub); margin:10px 0 16px; line-height:1.55; }
   .card .note b { color:#bdbdbd; }
   code { background:#0d2226; color:var(--accent); padding:1px 5px; border-radius:3px; font-size:.9em; }
 
-  .tbl { width:100%; border-collapse:collapse; font-size:.85rem; }
+  .tbl { width:100%; border-collapse:collapse; font-size:.82rem; }
   .tbl th { text-align:right; color:var(--sub); font-weight:600; padding:8px 6px;
-            border-bottom:1px solid var(--border); white-space:nowrap; font-size:.78rem; }
+            border-bottom:1px solid var(--border); white-space:nowrap; font-size:.76rem; }
   .tbl th.l, .tbl td.l { text-align:left; }
   .tbl td { padding:7px 6px; border-bottom:1px solid #222; text-align:right; white-space:nowrap; }
   .tbl tr:hover td { background:#1f1f1f; }
-  .ttl { max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .vid { font-family:ui-monospace,monospace; font-size:.72rem; color:#666;
-         max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #videoBody td { font-size:.79rem; }
+  .ttl { max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .vid { font-family:ui-monospace,monospace; font-size:.7rem; color:#666;
+         max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .good { color:var(--green); font-weight:700; }
   .warn { color:var(--orange); font-weight:700; }
   .bad  { color:var(--red); font-weight:700; }
   .dim  { color:#666; }
   .na   { color:#3a3a3a; }
-  .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.72rem;
-         background:#16142e; color:#a9a2ff; white-space:nowrap; }
+  .tag { display:inline-block; padding:2px 6px; border-radius:10px; font-size:.68rem;
+         background:#16142e; color:#a9a2ff; white-space:nowrap;
+         max-width:118px; overflow:hidden; text-overflow:ellipsis; vertical-align:bottom; }
   .tag.f { background:#0d2226; color:var(--accent); }
   .tag.none { background:#2a1f0d; color:#d9b366; }
+  .tbl td.fdesc { font-size:.75rem; color:var(--sub); line-height:1.45;
+                  white-space:normal; max-width:430px; min-width:300px; }
 
   .heat { width:100%; border-collapse:separate; border-spacing:2px; font-size:.78rem; }
   .heat th { color:var(--sub); font-weight:600; padding:5px 6px; font-size:.72rem; white-space:nowrap; }
   .heat th.l { text-align:left; }
-  .heat td { text-align:center; padding:7px 4px; border-radius:4px; min-width:46px;
+  .heat td { text-align:center; padding:7px 4px; border-radius:4px; min-width:44px;
              font-variant-numeric:tabular-nums; }
   .heat td.l { text-align:left; background:none !important; color:var(--sub);
-               white-space:nowrap; padding-right:10px; max-width:260px;
+               white-space:nowrap; padding-right:10px; max-width:250px;
                overflow:hidden; text-overflow:ellipsis; }
-  .heat td.empty { background:#151515 !important; color:#3a3a3a; }
+  .heat td.zero { background:#151515 !important; color:#3a3a3a; }
+  .heat td.notrack { background:repeating-linear-gradient(45deg,#141414,#141414 4px,#1b1b1b 4px,#1b1b1b 8px) !important;
+                     color:#333; }
 
   .warnbox { max-width:1180px; margin:0 auto 24px; padding:12px 18px; border-radius:10px;
              background:#2a1f0d; border:1px solid #4a3a15; color:#d9b366;
              font-size:.82rem; line-height:1.6; }
+  #todoBody td:last-child { max-width:620px; overflow:hidden; text-overflow:ellipsis; }
   .footer { text-align:center; color:var(--sub); font-size:.75rem; margin-top:32px; line-height:1.7; }
+  .footer a { color:var(--accent); text-decoration:none; }
 </style>
 </head>
 <body>
 
-<h1>Контент-дашборд: единицы контента и кластеры</h1>
+<h1>Контент-дашборд: ролики и кластеры</h1>
 <p class="subtitle">
-  Органический контент → трипвайер-воронка → продажи · Обновлено: 05.09.2026 05:59 МСК ·
+  YouTube-органика → трипвайер-воронка → продажи · Обновлено: 04.09.2026 20:16 МСК ·
   <a href="index.html">← сквозная воронка</a>
 </p>
+
+<div class="filter-bar">
+  <span class="filter-label">Период</span>
+  <button class="preset-btn active" id="allBtn">Весь период</button>
+  <select id="monthQuick"></select>
+  <div class="filter-sep"></div>
+  <span class="filter-label">Диапазон</span>
+  <input type="date" id="dateFrom"> — <input type="date" id="dateTo">
+  <button class="preset-btn" id="applyBtn">Применить</button>
+</div>
+
+<div class="filter-bar ch-bar">
+  <span class="filter-label">Канал</span>
+  <span id="channelButtons"></span>
+</div>
+
+<p class="range-note" id="rangeNote"></p>
 
 <div id="stageWarn" class="warnbox"></div>
 
 <div class="stat-row">
-  <div class="stat"><div class="val" id="sVideos">—</div><div class="lbl">Единиц контента</div></div>
-  <div class="stat"><div class="val" id="sLeads">—</div><div class="lbl">Лидов с органики</div></div>
+  <div class="stat"><div class="val" id="sVideos">—</div><div class="lbl">Роликов с лидами</div></div>
+  <div class="stat"><div class="val" id="sLeads">—</div><div class="lbl">Лидов</div></div>
   <div class="stat"><div class="val" id="sTw" style="color:var(--orange)">—</div><div class="lbl">Оплат трипвайера</div></div>
   <div class="stat"><div class="val" id="sTwRev" style="color:var(--orange)">—</div><div class="lbl">Выручка трипвайера</div></div>
   <div class="stat"><div class="val" id="sRev" style="color:var(--green)">—</div><div class="lbl">Выручка ОП</div></div>
-  <div class="stat"><div class="val" id="sRpl" style="color:var(--purple)">—</div><div class="lbl">Выручка всего на единицу</div></div>
+  <div class="stat"><div class="val" id="sRpm" style="color:var(--purple)">—</div><div class="lbl">Выручка на 1000 просмотров</div></div>
 </div>
 
 <div class="charts">
 
   <div class="card">
-    <h2>1. Единицы контента</h2>
+    <h2>1. Ролики</h2>
     <p class="note">
       Ключ склейки — <code>video_id</code> из <code>utm_content</code>. Кластер и функция
       берутся из справочника, а не из метки: метка после публикации неизменна, а
-      классификация будет меняться. Сортировка по числу лидов.
-      <b>Колонки «Просмотры» и «Выручка на 1000 просмотров» появятся на этапе 2</b>,
-      когда подключим YouTube Analytics API — сейчас знаменателя нет.
+      классификация будет меняться. Название, дата и просмотры приходят из YouTube
+      Data API. <b>Просмотры накопительные за всю жизнь ролика и фильтр по датам их
+      не режет</b> — Data API не отдаёт разбивку по дням, для неё нужен Analytics API
+      с OAuth. Поэтому при узком периоде «₽/1000» занижена: выручка за период делится
+      на просмотры за всё время.
     </p>
     <div style="overflow-x:auto"><table class="tbl">
       <thead><tr>
-        <th class="l">Единица контента</th><th class="l">Площадка</th><th class="l">Кластер</th><th class="l">Функция</th>
-        <th>Лидов</th><th>Дочитали</th><th>Checkout</th><th>Трипвайер</th><th>CR</th>
-        <th title="Выручка трипвайера">₽ ТВ</th><th>В ОП</th><th title="Выручка основной воронки продаж">₽ ОП</th>
+        <th class="l">Ролик</th><th class="l">Кластер</th><th class="l">Функция</th>
+        <th>Опубл.</th><th>Просмотры</th><th>Лидов</th>
+        <th title="Сколько лидов даёт ролик на 1000 просмотров">Лид/1000</th>
+        <th>Дочитали</th><th>Трипвайер</th>
+        <th title="Выручка трипвайера">₽ ТВ</th>
+        <th title="Выручка основной воронки продаж">₽ ОП</th>
+        <th title="Вся выручка ролика на 1000 просмотров">₽/1000</th>
       </tr></thead>
       <tbody id="videoBody"></tbody>
     </table></div>
@@ -120,8 +166,9 @@
     </p>
     <div style="overflow-x:auto"><table class="tbl">
       <thead><tr>
-        <th class="l">Кластер</th><th>Единиц</th><th>Лидов</th><th>Лидов на единицу</th>
-        <th>Дочитали</th><th>Трипвайер</th><th>CR</th><th>Выручка</th><th>Выручка на единицу</th>
+        <th class="l">Кластер</th><th>Роликов</th><th>Просмотры</th><th>Лидов</th>
+        <th>Лид/1000</th><th>Дочитали</th><th>Трипвайер</th><th>CR</th>
+        <th>Выручка</th><th>₽/1000</th>
       </tr></thead>
       <tbody id="clusterBody"></tbody>
     </table></div>
@@ -131,12 +178,15 @@
     <h2>3. Функция контента</h2>
     <p class="note">
       Вторая ось с Miro-доски, ортогональная кластерам: какую работу материал делает
-      в воронке. Один и тот же кластер можно раскрывать разными функциями.
+      в воронке. Один и тот же кластер можно раскрывать разными функциями, и наоборот.
+      Ждать выручки напрямую стоит не от каждой функции — Discovery и Authority
+      работают на верх воронки, их вклад виден не в своей строке, а в том, что
+      человек вообще дошёл до Money Maker.
     </p>
     <div style="overflow-x:auto"><table class="tbl">
       <thead><tr>
-        <th class="l">Функция</th><th>Единиц</th><th>Лидов</th><th>Дочитали</th>
-        <th>Трипвайер</th><th>CR</th><th>Выручка</th>
+        <th class="l">Функция</th><th class="l">Что делает</th>
+        <th>Роликов</th><th>Лидов</th><th>Дочитали</th><th>Трипвайер</th><th>CR</th><th>Выручка</th>
       </tr></thead>
       <tbody id="funcBody"></tbody>
     </table></div>
@@ -145,175 +195,373 @@
   <div class="card">
     <h2>4. Как ролик раскрывается на дистанции</h2>
     <p class="note">
-      Строка — ролик, колонка — неделя с первого лида, ячейка — сколько лидов пришло
-      за эту неделю. У YouTube длинный хвост: ролик собирает трафик месяцами, поэтому
-      сравнивать свежие публикации со старыми по абсолютной выручке некорректно.
-      Именно этот разрез Миша просил для понедельничной планёрки.
+      Строка — ролик, колонка — неделя <b>от даты публикации</b>: «нед. 0» это первые
+      семь дней жизни ролика. Ячейка — сколько лидов пришло за эту неделю. У YouTube
+      длинный хвост, ролик собирает трафик месяцами, поэтому сравнивать свежие
+      публикации со старыми по абсолютным числам некорректно — сравнивать нужно
+      неделю с неделей.
+      <span id="cohortNote"></span>
     </p>
     <div style="overflow-x:auto"><table class="heat" id="cohortTable"></table></div>
+    <p class="note" style="margin-bottom:0">
+      <span class="heat" style="display:inline-block;width:14px;height:10px;vertical-align:middle;
+        background:repeating-linear-gradient(45deg,#141414,#141414 4px,#1b1b1b 4px,#1b1b1b 8px);
+        border-radius:2px"></span>
+      — данных нет: неделя либо ещё не наступила, либо прошла до старта трекинга.
+      Точка <span class="dim">·</span> — другое: неделя прошла при работающем трекинге и лидов было ноль.
+    </p>
   </div>
 
   <div class="card">
     <h2>5. Что требует внимания</h2>
-    <p class="note">Рабочий список на планёрку: где разметка неполная и какие ролики молчат.</p>
+    <p class="note">Рабочий список: где разметка неполная и какие ролики молчат.</p>
     <table class="tbl"><tbody id="todoBody"></tbody></table>
   </div>
 
 </div>
 
 <p class="footer">
-  Этап 1: только данные amoCRM, без просмотров · Справочник: <span id="regSrc"></span><br>
-  <span id="metaLine"></span>
+  Справочник классификации: <span id="regSrc"></span> · Каталог роликов: YouTube Data API<br>
+  <span id="metaLine"></span><br>
+  Трипвайерные воронки по отдельности:
+  <a href="https://admin-web3a.github.io/md-dashboard/">Money-Dick</a> ·
+  <a href="https://admin-web3a.github.io/petrock-dashboard/">PetRock</a>
 </p>
 
 <script>
-const VIDEOS    = [{"id":"03092026","title":"Пост в Telegram-канале от 03.09.2026","platform":"telegram","src":"tgc","channel":"","cluster":"","func":"","expert":"","fmt":"post","known":true,"n":175,"read":50,"checkout":10,"tw":1,"twRev":9700.0,"op":1,"won":0,"rev":0,"first":1787513207,"leads":[{"ts":1788444310,"st":5,"op":0,"rev":0},{"ts":1788444379,"st":3,"op":0,"rev":0},{"ts":1788444456,"st":1,"op":0,"rev":0},{"ts":1788444459,"st":1,"op":0,"rev":0},{"ts":1788444386,"st":5,"op":0,"rev":0},{"ts":1788444555,"st":1,"op":0,"rev":0},{"ts":1788444613,"st":1,"op":0,"rev":0},{"ts":1788444472,"st":2,"op":0,"rev":0},{"ts":1788444311,"st":2,"op":0,"rev":0},{"ts":1788444769,"st":1,"op":0,"rev":0},{"ts":1788444572,"st":2,"op":0,"rev":0},{"ts":1788444357,"st":7,"op":0,"rev":0},{"ts":1788445016,"st":1,"op":0,"rev":0},{"ts":1788445046,"st":1,"op":0,"rev":0},{"ts":1788444868,"st":2,"op":0,"rev":0},{"ts":1788445284,"st":1,"op":0,"rev":0},{"ts":1788444526,"st":7,"op":0,"rev":0},{"ts":1788445363,"st":3,"op":0,"rev":0},{"ts":1788445535,"st":3,"op":0,"rev":0},{"ts":1788445617,"st":1,"op":0,"rev":0},{"ts":1788444513,"st":9,"op":0,"rev":0},{"ts":1788444286,"st":7,"op":0,"rev":0},{"ts":1788446180,"st":1,"op":0,"rev":0},{"ts":1788446235,"st":1,"op":0,"rev":0},{"ts":1788444311,"st":7,"op":0,"rev":0},{"ts":1788446476,"st":1,"op":0,"rev":0},{"ts":1788446422,"st":2,"op":0,"rev":0},{"ts":1788444899,"st":5,"op":0,"rev":0},{"ts":1788446277,"st":7,"op":0,"rev":0},{"ts":1788445490,"st":7,"op":0,"rev":0},{"ts":1788445739,"st":5,"op":0,"rev":0},{"ts":1788446542,"st":2,"op":0,"rev":0},{"ts":1788447216,"st":1,"op":0,"rev":0},{"ts":1788447265,"st":7,"op":0,"rev":0},{"ts":1788447620,"st":1,"op":0,"rev":0},{"ts":1788445549,"st":4,"op":0,"rev":0},{"ts":1788447359,"st":2,"op":0,"rev":0},{"ts":1788446071,"st":7,"op":0,"rev":0},{"ts":1788448029,"st":1,"op":0,"rev":0},{"ts":1788448068,"st":1,"op":0,"rev":0},{"ts":1788448115,"st":1,"op":0,"rev":0},{"ts":1788444334,"st":7,"op":0,"rev":0},{"ts":1788448212,"st":3,"op":0,"rev":0},{"ts":1788448956,"st":1,"op":0,"rev":0},{"ts":1788448959,"st":1,"op":0,"rev":0},{"ts":1788448114,"st":2,"op":0,"rev":0},{"ts":1788448973,"st":3,"op":0,"rev":0},{"ts":1788449325,"st":2,"op":0,"rev":0},{"ts":1788449602,"st":1,"op":0,"rev":0},{"ts":1788449713,"st":0,"op":0,"rev":0},{"ts":1788447816,"st":5,"op":0,"rev":0},{"ts":1788450170,"st":1,"op":0,"rev":0},{"ts":1788449782,"st":7,"op":0,"rev":0},{"ts":1788449580,"st":7,"op":0,"rev":0},{"ts":1788450322,"st":2,"op":0,"rev":0},{"ts":1788448054,"st":4,"op":0,"rev":0},{"ts":1788450886,"st":1,"op":0,"rev":0},{"ts":1788444454,"st":3,"op":0,"rev":0},{"ts":1788451008,"st":1,"op":0,"rev":0},{"ts":1788451093,"st":1,"op":0,"rev":0},{"ts":1788451123,"st":1,"op":0,"rev":0},{"ts":1788451147,"st":1,"op":0,"rev":0},{"ts":1788444647,"st":7,"op":0,"rev":0},{"ts":1788449388,"st":7,"op":0,"rev":0},{"ts":1788450665,"st":5,"op":0,"rev":0},{"ts":1788451417,"st":1,"op":0,"rev":0},{"ts":1788451736,"st":1,"op":0,"rev":0},{"ts":1788452302,"st":1,"op":0,"rev":0},{"ts":1788446107,"st":5,"op":0,"rev":0},{"ts":1788452529,"st":3,"op":0,"rev":0},{"ts":1788447376,"st":9,"op":0,"rev":0},{"ts":1788451694,"st":7,"op":0,"rev":0},{"ts":1788453790,"st":1,"op":0,"rev":0},{"ts":1788452391,"st":7,"op":0,"rev":0},{"ts":1788454101,"st":7,"op":0,"rev":0},{"ts":1788455110,"st":2,"op":0,"rev":0},{"ts":1787739956,"st":7,"op":0,"rev":0},{"ts":1788455480,"st":1,"op":0,"rev":0},{"ts":1788455701,"st":1,"op":0,"rev":0},{"ts":1788455957,"st":1,"op":0,"rev":0},{"ts":1788454401,"st":7,"op":0,"rev":0},{"ts":1788456062,"st":3,"op":0,"rev":0},{"ts":1788456486,"st":3,"op":0,"rev":0},{"ts":1788456459,"st":7,"op":0,"rev":0},{"ts":1788458075,"st":1,"op":0,"rev":0},{"ts":1788458145,"st":1,"op":0,"rev":0},{"ts":1788456124,"st":7,"op":0,"rev":0},{"ts":1788457191,"st":5,"op":0,"rev":0},{"ts":1788445557,"st":7,"op":0,"rev":0},{"ts":1788458873,"st":1,"op":0,"rev":0},{"ts":1788459344,"st":1,"op":0,"rev":0},{"ts":1787513207,"st":9,"op":0,"rev":0},{"ts":1788458763,"st":7,"op":0,"rev":0},{"ts":1788459850,"st":1,"op":0,"rev":0},{"ts":1788454115,"st":9,"op":0,"rev":0},{"ts":1788460477,"st":1,"op":0,"rev":0},{"ts":1788459702,"st":7,"op":0,"rev":0},{"ts":1788444493,"st":9,"op":1,"rev":0},{"ts":1788444285,"st":7,"op":0,"rev":0},{"ts":1788464395,"st":1,"op":0,"rev":0},{"ts":1788462154,"st":4,"op":0,"rev":0},{"ts":1788464784,"st":2,"op":0,"rev":0},{"ts":1788465669,"st":1,"op":0,"rev":0},{"ts":1788466414,"st":1,"op":0,"rev":0},{"ts":1788466218,"st":3,"op":0,"rev":0},{"ts":1788466543,"st":3,"op":0,"rev":0},{"ts":1788466874,"st":8,"op":0,"rev":0},{"ts":1788446077,"st":7,"op":0,"rev":0},{"ts":1788469382,"st":3,"op":0,"rev":0},{"ts":1788469034,"st":2,"op":0,"rev":0},{"ts":1788469646,"st":1,"op":0,"rev":0},{"ts":1788468562,"st":7,"op":0,"rev":0},{"ts":1788461901,"st":9,"op":0,"rev":0},{"ts":1788471606,"st":3,"op":0,"rev":0},{"ts":1788444383,"st":3,"op":0,"rev":0},{"ts":1788465401,"st":5,"op":0,"rev":0},{"ts":1788479541,"st":5,"op":0,"rev":0},{"ts":1788486630,"st":3,"op":0,"rev":0},{"ts":1788492997,"st":2,"op":0,"rev":0},{"ts":1788495443,"st":1,"op":0,"rev":0},{"ts":1788494375,"st":7,"op":0,"rev":0},{"ts":1788488713,"st":7,"op":0,"rev":0},{"ts":1788496770,"st":3,"op":0,"rev":0},{"ts":1788495738,"st":5,"op":0,"rev":0},{"ts":1788498171,"st":1,"op":0,"rev":0},{"ts":1788498338,"st":3,"op":0,"rev":0},{"ts":1788460836,"st":7,"op":0,"rev":0},{"ts":1788500351,"st":2,"op":0,"rev":0},{"ts":1788502525,"st":1,"op":0,"rev":0},{"ts":1788502261,"st":3,"op":0,"rev":0},{"ts":1788503387,"st":1,"op":0,"rev":0},{"ts":1788503253,"st":7,"op":0,"rev":0},{"ts":1788503561,"st":4,"op":0,"rev":0},{"ts":1788498577,"st":7,"op":0,"rev":0},{"ts":1788501610,"st":3,"op":0,"rev":0},{"ts":1788507167,"st":1,"op":0,"rev":0},{"ts":1788508197,"st":1,"op":0,"rev":0},{"ts":1788469826,"st":1,"op":0,"rev":0},{"ts":1788502221,"st":7,"op":0,"rev":0},{"ts":1788508075,"st":7,"op":0,"rev":0},{"ts":1788511548,"st":3,"op":0,"rev":0},{"ts":1788512969,"st":1,"op":0,"rev":0},{"ts":1788462655,"st":3,"op":0,"rev":0},{"ts":1788515546,"st":4,"op":0,"rev":0},{"ts":1788513109,"st":7,"op":0,"rev":0},{"ts":1788516051,"st":3,"op":0,"rev":0},{"ts":1788516438,"st":1,"op":0,"rev":0},{"ts":1788517774,"st":1,"op":0,"rev":0},{"ts":1788519352,"st":1,"op":0,"rev":0},{"ts":1788513839,"st":7,"op":0,"rev":0},{"ts":1788521332,"st":5,"op":0,"rev":0},{"ts":1788516142,"st":7,"op":0,"rev":0},{"ts":1788462936,"st":4,"op":0,"rev":0},{"ts":1788515364,"st":7,"op":0,"rev":0},{"ts":1788527497,"st":1,"op":0,"rev":0},{"ts":1788528609,"st":14,"op":0,"rev":0},{"ts":1788524683,"st":5,"op":0,"rev":0},{"ts":1788533087,"st":1,"op":0,"rev":0},{"ts":1788534245,"st":3,"op":0,"rev":0},{"ts":1788534870,"st":3,"op":0,"rev":0},{"ts":1788539344,"st":1,"op":0,"rev":0},{"ts":1788541316,"st":3,"op":0,"rev":0},{"ts":1788541486,"st":3,"op":0,"rev":0},{"ts":1788544159,"st":7,"op":0,"rev":0},{"ts":1788461714,"st":12,"op":0,"rev":0},{"ts":1788545231,"st":9,"op":0,"rev":0},{"ts":1788547964,"st":1,"op":0,"rev":0},{"ts":1788497012,"st":1,"op":0,"rev":0},{"ts":1788550901,"st":1,"op":0,"rev":0},{"ts":1788552798,"st":5,"op":0,"rev":0},{"ts":1787733864,"st":3,"op":0,"rev":0},{"ts":1788553261,"st":7,"op":0,"rev":0},{"ts":1788559875,"st":3,"op":0,"rev":0},{"ts":1788563000,"st":2,"op":0,"rev":0},{"ts":1788574845,"st":12,"op":0,"rev":0}]},{"id":"wTtVBC6kacw","title":"Все, что нужно знать о стейблкоинах за 86 минут","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"beginner","func":"authority","expert":"Иван","fmt":"long","known":true,"n":157,"read":70,"checkout":11,"tw":8,"twRev":77600.0,"op":2,"won":0,"rev":0,"first":1787673043,"leads":[{"ts":1787673043,"st":6,"op":0,"rev":0},{"ts":1787676063,"st":5,"op":0,"rev":0},{"ts":1787676217,"st":1,"op":0,"rev":0},{"ts":1787678612,"st":1,"op":0,"rev":0},{"ts":1787679371,"st":1,"op":0,"rev":0},{"ts":1787676840,"st":6,"op":0,"rev":0},{"ts":1787676995,"st":6,"op":0,"rev":0},{"ts":1787673225,"st":3,"op":0,"rev":0},{"ts":1787679990,"st":5,"op":0,"rev":0},{"ts":1787679146,"st":6,"op":0,"rev":0},{"ts":1787681069,"st":6,"op":0,"rev":0},{"ts":1787682007,"st":1,"op":0,"rev":0},{"ts":1787676665,"st":6,"op":0,"rev":0},{"ts":1787683019,"st":5,"op":0,"rev":0},{"ts":1787683506,"st":6,"op":0,"rev":0},{"ts":1787681610,"st":6,"op":0,"rev":0},{"ts":1787685607,"st":1,"op":0,"rev":0},{"ts":1787680805,"st":6,"op":0,"rev":0},{"ts":1787687243,"st":3,"op":0,"rev":0},{"ts":1787686217,"st":6,"op":0,"rev":0},{"ts":1787688089,"st":1,"op":0,"rev":0},{"ts":1787686337,"st":6,"op":0,"rev":0},{"ts":1787690298,"st":1,"op":0,"rev":0},{"ts":1787690665,"st":3,"op":0,"rev":0},{"ts":1787686151,"st":3,"op":0,"rev":0},{"ts":1787682148,"st":6,"op":0,"rev":0},{"ts":1787694150,"st":3,"op":0,"rev":0},{"ts":1787695211,"st":5,"op":0,"rev":0},{"ts":1787696625,"st":6,"op":0,"rev":0},{"ts":1787709779,"st":3,"op":0,"rev":0},{"ts":1787712496,"st":6,"op":0,"rev":0},{"ts":1787715062,"st":3,"op":0,"rev":0},{"ts":1787701926,"st":3,"op":0,"rev":0},{"ts":1787718891,"st":2,"op":0,"rev":0},{"ts":1787721021,"st":5,"op":0,"rev":0},{"ts":1787721088,"st":3,"op":0,"rev":0},{"ts":1787722765,"st":5,"op":0,"rev":0},{"ts":1787722395,"st":5,"op":0,"rev":0},{"ts":1787722229,"st":5,"op":0,"rev":0},{"ts":1787725663,"st":5,"op":0,"rev":0},{"ts":1787726494,"st":5,"op":0,"rev":0},{"ts":1787727666,"st":6,"op":0,"rev":0},{"ts":1787727715,"st":6,"op":0,"rev":0},{"ts":1787727547,"st":6,"op":0,"rev":0},{"ts":1787729054,"st":1,"op":0,"rev":0},{"ts":1787731091,"st":1,"op":0,"rev":0},{"ts":1787727976,"st":7,"op":0,"rev":0},{"ts":1787733538,"st":5,"op":0,"rev":0},{"ts":1787732751,"st":5,"op":0,"rev":0},{"ts":1787734353,"st":7,"op":0,"rev":0},{"ts":1787738658,"st":3,"op":0,"rev":0},{"ts":1787737701,"st":7,"op":0,"rev":0},{"ts":1787739009,"st":7,"op":0,"rev":0},{"ts":1787742859,"st":1,"op":0,"rev":0},{"ts":1787740827,"st":7,"op":0,"rev":0},{"ts":1787744178,"st":2,"op":0,"rev":0},{"ts":1787740957,"st":7,"op":0,"rev":0},{"ts":1787738443,"st":1,"op":0,"rev":0},{"ts":1787748505,"st":1,"op":0,"rev":0},{"ts":1787748978,"st":7,"op":0,"rev":0},{"ts":1787749869,"st":1,"op":0,"rev":0},{"ts":1787751294,"st":2,"op":0,"rev":0},{"ts":1787740863,"st":7,"op":0,"rev":0},{"ts":1787758766,"st":7,"op":0,"rev":0},{"ts":1787751085,"st":7,"op":0,"rev":0},{"ts":1787743902,"st":7,"op":0,"rev":0},{"ts":1787757294,"st":7,"op":0,"rev":0},{"ts":1787764728,"st":7,"op":0,"rev":0},{"ts":1787764332,"st":5,"op":0,"rev":0},{"ts":1787766902,"st":7,"op":0,"rev":0},{"ts":1787769128,"st":7,"op":0,"rev":0},{"ts":1787769504,"st":5,"op":0,"rev":0},{"ts":1787766171,"st":7,"op":0,"rev":0},{"ts":1787770787,"st":1,"op":0,"rev":0},{"ts":1787771418,"st":1,"op":0,"rev":0},{"ts":1787683239,"st":7,"op":0,"rev":0},{"ts":1787772101,"st":1,"op":0,"rev":0},{"ts":1787773196,"st":7,"op":0,"rev":0},{"ts":1787773821,"st":14,"op":0,"rev":0},{"ts":1787776667,"st":1,"op":0,"rev":0},{"ts":1787782063,"st":7,"op":0,"rev":0},{"ts":1787786393,"st":1,"op":0,"rev":0},{"ts":1787795440,"st":1,"op":0,"rev":0},{"ts":1787803537,"st":3,"op":0,"rev":0},{"ts":1787814540,"st":3,"op":0,"rev":0},{"ts":1787685958,"st":14,"op":0,"rev":0},{"ts":1787689806,"st":14,"op":0,"rev":0},{"ts":1787829898,"st":1,"op":0,"rev":0},{"ts":1787830815,"st":7,"op":0,"rev":0},{"ts":1787836710,"st":7,"op":0,"rev":0},{"ts":1787695330,"st":3,"op":0,"rev":0},{"ts":1787744519,"st":4,"op":0,"rev":0},{"ts":1787748354,"st":7,"op":0,"rev":0},{"ts":1787685237,"st":5,"op":0,"rev":0},{"ts":1787856366,"st":1,"op":0,"rev":0},{"ts":1787773939,"st":7,"op":0,"rev":0},{"ts":1787857383,"st":7,"op":0,"rev":0},{"ts":1787859094,"st":7,"op":0,"rev":0},{"ts":1787868901,"st":3,"op":0,"rev":0},{"ts":1787897757,"st":7,"op":0,"rev":0},{"ts":1787918405,"st":0,"op":0,"rev":0},{"ts":1787822829,"st":7,"op":0,"rev":0},{"ts":1787923464,"st":1,"op":0,"rev":0},{"ts":1787898915,"st":1,"op":0,"rev":0},{"ts":1787929912,"st":5,"op":0,"rev":0},{"ts":1787928261,"st":7,"op":0,"rev":0},{"ts":1787848426,"st":4,"op":0,"rev":0},{"ts":1787942071,"st":1,"op":0,"rev":0},{"ts":1787811930,"st":1,"op":1,"rev":0},{"ts":1787855088,"st":7,"op":0,"rev":0},{"ts":1787675714,"st":2,"op":0,"rev":0},{"ts":1787999119,"st":1,"op":0,"rev":0},{"ts":1788008547,"st":3,"op":0,"rev":0},{"ts":1788008511,"st":7,"op":0,"rev":0},{"ts":1788012115,"st":12,"op":0,"rev":0},{"ts":1788010955,"st":12,"op":0,"rev":0},{"ts":1788077972,"st":7,"op":0,"rev":0},{"ts":1788092323,"st":5,"op":0,"rev":0},{"ts":1788110753,"st":7,"op":0,"rev":0},{"ts":1788113387,"st":5,"op":0,"rev":0},{"ts":1787769324,"st":1,"op":0,"rev":0},{"ts":1788119892,"st":1,"op":0,"rev":0},{"ts":1788118885,"st":7,"op":0,"rev":0},{"ts":1788135846,"st":7,"op":0,"rev":0},{"ts":1787993633,"st":12,"op":1,"rev":0},{"ts":1788183656,"st":1,"op":0,"rev":0},{"ts":1788070225,"st":14,"op":0,"rev":0},{"ts":1788191855,"st":7,"op":0,"rev":0},{"ts":1788200019,"st":2,"op":0,"rev":0},{"ts":1788203288,"st":1,"op":0,"rev":0},{"ts":1788218954,"st":1,"op":0,"rev":0},{"ts":1788218928,"st":1,"op":0,"rev":0},{"ts":1788252422,"st":1,"op":0,"rev":0},{"ts":1787847977,"st":5,"op":0,"rev":0},{"ts":1788268118,"st":3,"op":0,"rev":0},{"ts":1787684627,"st":7,"op":0,"rev":0},{"ts":1788285468,"st":7,"op":0,"rev":0},{"ts":1788270484,"st":14,"op":0,"rev":0},{"ts":1788299772,"st":3,"op":0,"rev":0},{"ts":1788338858,"st":7,"op":0,"rev":0},{"ts":1788074001,"st":7,"op":0,"rev":0},{"ts":1788373593,"st":1,"op":0,"rev":0},{"ts":1788382254,"st":1,"op":0,"rev":0},{"ts":1787801049,"st":1,"op":0,"rev":0},{"ts":1788077895,"st":1,"op":0,"rev":0},{"ts":1787680239,"st":14,"op":0,"rev":0},{"ts":1788257038,"st":7,"op":0,"rev":0},{"ts":1788101675,"st":1,"op":0,"rev":0},{"ts":1788448945,"st":5,"op":0,"rev":0},{"ts":1788082151,"st":7,"op":0,"rev":0},{"ts":1788500088,"st":3,"op":0,"rev":0},{"ts":1788006665,"st":3,"op":0,"rev":0},{"ts":1788364341,"st":14,"op":0,"rev":0},{"ts":1787762652,"st":1,"op":0,"rev":0},{"ts":1788453589,"st":14,"op":0,"rev":0},{"ts":1787679323,"st":7,"op":0,"rev":0},{"ts":1788546675,"st":3,"op":0,"rev":0}]},{"id":"zKaCIGJtRCI","title":"Как работают DEX, AMM и пулы ликвидности для новичков","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"cashflow","func":"authority","expert":"Иван","fmt":"long","known":true,"n":14,"read":7,"checkout":3,"tw":0,"twRev":0,"op":1,"won":0,"rev":0,"first":1784829115,"leads":[{"ts":1784897388,"st":3,"op":0,"rev":0},{"ts":1784864709,"st":1,"op":1,"rev":0},{"ts":1784829115,"st":9,"op":0,"rev":0},{"ts":1785249517,"st":3,"op":0,"rev":0},{"ts":1785527626,"st":7,"op":0,"rev":0},{"ts":1786482708,"st":9,"op":0,"rev":0},{"ts":1786658489,"st":9,"op":0,"rev":0},{"ts":1786733422,"st":7,"op":0,"rev":0},{"ts":1787086816,"st":3,"op":0,"rev":0},{"ts":1787487696,"st":1,"op":0,"rev":0},{"ts":1787678326,"st":5,"op":0,"rev":0},{"ts":1787078190,"st":7,"op":0,"rev":0},{"ts":1788118774,"st":7,"op":0,"rev":0},{"ts":1788207952,"st":1,"op":0,"rev":0}]},{"id":"87d0TKo407A","title":"Самое скучное видео про крипту, которое сэкономит тебе деньги","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"beginner","func":"belief_shift","expert":"Иван","fmt":"long","known":true,"n":13,"read":8,"checkout":2,"tw":1,"twRev":9700.0,"op":1,"won":0,"rev":0,"first":1784890767,"leads":[{"ts":1784890767,"st":5,"op":1,"rev":0},{"ts":1785220656,"st":1,"op":0,"rev":0},{"ts":1785412981,"st":7,"op":0,"rev":0},{"ts":1786800987,"st":7,"op":0,"rev":0},{"ts":1787050231,"st":1,"op":0,"rev":0},{"ts":1787425794,"st":7,"op":0,"rev":0},{"ts":1787567904,"st":6,"op":0,"rev":0},{"ts":1787740979,"st":5,"op":0,"rev":0},{"ts":1787741704,"st":9,"op":0,"rev":0},{"ts":1787749556,"st":14,"op":0,"rev":0},{"ts":1788166692,"st":7,"op":0,"rev":0},{"ts":1788087287,"st":3,"op":0,"rev":0},{"ts":1788493566,"st":7,"op":0,"rev":0}]},{"id":"header","title":"Ссылка в шапке канала","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"","func":"","expert":"","fmt":"placement","known":true,"n":13,"read":9,"checkout":5,"tw":0,"twRev":0,"op":2,"won":0,"rev":0,"first":1785243854,"leads":[{"ts":1785243854,"st":9,"op":0,"rev":0},{"ts":1785268735,"st":3,"op":1,"rev":0},{"ts":1785921540,"st":7,"op":0,"rev":0},{"ts":1786516395,"st":7,"op":0,"rev":0},{"ts":1786975371,"st":1,"op":0,"rev":0},{"ts":1787135031,"st":7,"op":0,"rev":0},{"ts":1786359329,"st":12,"op":1,"rev":0},{"ts":1787287537,"st":1,"op":0,"rev":0},{"ts":1787133037,"st":1,"op":0,"rev":0},{"ts":1787813333,"st":7,"op":0,"rev":0},{"ts":1787727791,"st":9,"op":0,"rev":0},{"ts":1788543884,"st":12,"op":0,"rev":0},{"ts":1788118964,"st":9,"op":0,"rev":0}]},{"id":"fvpkc_fimLk","title":"Топ перспективных криптовалют для роста в 2026","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"beginner","func":"discovery","expert":"Иван","fmt":"long","known":true,"n":11,"read":6,"checkout":0,"tw":0,"twRev":0,"op":2,"won":1,"rev":99900,"first":1784662767,"leads":[{"ts":1784662767,"st":7,"op":0,"rev":0},{"ts":1784767530,"st":7,"op":0,"rev":0},{"ts":1786518334,"st":1,"op":0,"rev":0},{"ts":1786620690,"st":1,"op":0,"rev":0},{"ts":1784897343,"st":1,"op":1,"rev":99900},{"ts":1785216598,"st":7,"op":0,"rev":0},{"ts":1787694618,"st":6,"op":0,"rev":0},{"ts":1788002602,"st":7,"op":0,"rev":0},{"ts":1788096549,"st":3,"op":1,"rev":0},{"ts":1785060580,"st":1,"op":0,"rev":0},{"ts":1784985575,"st":7,"op":0,"rev":0}]},{"id":"CDBbclNkFpU","title":"Как я путешествую в 10 раз дешевле всех остальных","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"offtopic","func":"discovery","expert":"Иван","fmt":"long","known":true,"n":6,"read":2,"checkout":2,"tw":0,"twRev":0,"op":1,"won":0,"rev":0,"first":1784901689,"leads":[{"ts":1784901689,"st":1,"op":0,"rev":0},{"ts":1785623254,"st":1,"op":0,"rev":0},{"ts":1786427469,"st":5,"op":0,"rev":0},{"ts":1786567486,"st":12,"op":2,"rev":0},{"ts":1787309525,"st":9,"op":0,"rev":0},{"ts":1787963968,"st":2,"op":0,"rev":0}]},{"id":"ZnFDOXl7Q-I","title":"Как Wi-Fi следит за тобой? | Эдвард Сноуден","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"offtopic","func":"discovery","expert":"Иван","fmt":"long","known":true,"n":6,"read":5,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1785305815,"leads":[{"ts":1785305815,"st":2,"op":0,"rev":0},{"ts":1785316387,"st":7,"op":0,"rev":0},{"ts":1785960577,"st":7,"op":0,"rev":0},{"ts":1787258544,"st":7,"op":0,"rev":0},{"ts":1787901083,"st":7,"op":0,"rev":0},{"ts":1788357699,"st":7,"op":0,"rev":0}]},{"id":"9m1DphN7MhQ","title":"Вас заставили поверить, что активы нужно продавать","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"capital","func":"belief_shift","expert":"Иван","fmt":"long","known":true,"n":5,"read":3,"checkout":2,"tw":1,"twRev":9700.0,"op":1,"won":0,"rev":0,"first":1784832271,"leads":[{"ts":1784832271,"st":4,"op":0,"rev":0},{"ts":1784905829,"st":1,"op":0,"rev":0},{"ts":1788281420,"st":9,"op":0,"rev":0},{"ts":1788283254,"st":14,"op":1,"rev":0},{"ts":1786203120,"st":7,"op":0,"rev":0}]},{"id":"DAzHwXYjEwc","title":"Как криптокошельки незаметно съедают ТВОИ деньги","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"beginner","func":"belief_shift","expert":"Иван","fmt":"long","known":true,"n":5,"read":1,"checkout":1,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1785139733,"leads":[{"ts":1785139733,"st":2,"op":0,"rev":0},{"ts":1786396823,"st":3,"op":0,"rev":0},{"ts":1786869731,"st":5,"op":0,"rev":0},{"ts":1788111658,"st":3,"op":0,"rev":0},{"ts":1788364947,"st":13,"op":0,"rev":0}]},{"id":"74ZYHn5V4Wo","title":"Какой криптокошелек выбрать?","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"beginner","func":"discovery","expert":"Иван","fmt":"long","known":true,"n":4,"read":1,"checkout":1,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1784798093,"leads":[{"ts":1784798093,"st":3,"op":0,"rev":0},{"ts":1785080499,"st":9,"op":0,"rev":0},{"ts":1785387412,"st":1,"op":0,"rev":0},{"ts":1785659124,"st":4,"op":0,"rev":0}]},{"id":"pop-up","title":"Поп-ап на блоге","platform":"blog","src":"wblog","channel":"","cluster":"","func":"","expert":"","fmt":"placement","known":true,"n":4,"read":2,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1786834263,"leads":[{"ts":1786834263,"st":7,"op":0,"rev":0},{"ts":1786939486,"st":3,"op":0,"rev":0},{"ts":1786985571,"st":1,"op":0,"rev":0},{"ts":1787503538,"st":7,"op":0,"rev":0}]},{"id":"C9mvNSBgwUc","title":"Ai заставил меня продать свои BTC, чтобы выйти на пенсию","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"capital","func":"belief_shift","expert":"Иван","fmt":"long","known":true,"n":2,"read":1,"checkout":0,"tw":0,"twRev":0,"op":1,"won":0,"rev":0,"first":1786667917,"leads":[{"ts":1786667917,"st":1,"op":1,"rev":0},{"ts":1788015570,"st":7,"op":0,"rev":0}]},{"id":"2XXmmgMrlH8","title":"БИТКОИН заменит не только золото, но и ЭТОТ рынок в $345 ТРИЛЛИОНОВ долларов","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"capital","func":"belief_shift","expert":"Иван","fmt":"long","known":true,"n":2,"read":1,"checkout":1,"tw":1,"twRev":9700.0,"op":0,"won":0,"rev":0,"first":1787411966,"leads":[{"ts":1787411966,"st":2,"op":0,"rev":0},{"ts":1788267750,"st":14,"op":0,"rev":0}]},{"id":"flagman_warm","title":"Реактивация: тёплая база флагмана","platform":"telegram","src":"email","channel":"","cluster":"","func":"","expert":"","fmt":"mailing","known":true,"n":1,"read":0,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1785524132,"leads":[{"ts":1785524132,"st":2,"op":0,"rev":0}]},{"id":"test","title":"Тестовая ссылка","platform":"telegram","src":"tg","channel":"","cluster":"","func":"","expert":"","fmt":"test","known":true,"n":1,"read":1,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1785998537,"leads":[{"ts":1785998537,"st":7,"op":0,"rev":0}]},{"id":"kak-zarabatyvat-na-kripte-2026","title":"Статья: как зарабатывать на крипте 2026","platform":"blog","src":"shashkov_org","channel":"","cluster":"","func":"","expert":"","fmt":"article","known":true,"n":1,"read":0,"checkout":0,"tw":0,"twRev":0,"op":1,"won":0,"rev":0,"first":1784822556,"leads":[{"ts":1784822556,"st":4,"op":1,"rev":0}]},{"id":"Tva_tP_wXeE","title":"Не бери ипотеку! Ты можешь купить 2-3 квартиры за наличку без долгов и банков","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"capital","func":"belief_shift","expert":"Иван","fmt":"long","known":true,"n":1,"read":0,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1787089348,"leads":[{"ts":1787089348,"st":2,"op":0,"rev":0}]},{"id":"flagman_cold","title":"Реактивация: холодная база флагмана","platform":"telegram","src":"tg","channel":"","cluster":"","func":"","expert":"","fmt":"mailing","known":true,"n":1,"read":0,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1787493072,"leads":[{"ts":1787493072,"st":2,"op":0,"rev":0}]},{"id":"ka5rZOBwRug","title":"Мой опыт инвестиций: Жесткие выводы после 10 лет","platform":"youtube","src":"yt","channel":"CryptoInside","cluster":"capital","func":"authority","expert":"Иван","fmt":"long","known":true,"n":1,"read":0,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1788366058,"leads":[{"ts":1788366058,"st":1,"op":0,"rev":0}]},{"id":"(нет метки)","title":"","platform":"","src":"tgc","channel":"","cluster":"","func":"","expert":"","fmt":"","known":false,"n":1,"read":1,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1788507176,"leads":[{"ts":1788507176,"st":7,"op":0,"rev":0}]}];
-const SILENT    = [];
+const VIDEOS    = [{"id":"wTtVBC6kacw","title":"Все, что нужно знать о стейблкоинах за 86 минут","channel":"CryptoInside","published":"2026-08-25","views":12439,"fmt":"видео","inCatalog":true,"postFunnel":true,"cluster":"beginner","func":"authority","expert":"Иван","known":true,"n":157,"read":70,"checkout":11,"tw":8,"twRev":77600.0,"op":2,"won":0,"rev":0,"first":1787673043,"leads":[{"ts":1787673043,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787676063,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787676217,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787678612,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787679371,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787676840,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787676995,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787673225,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787679990,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787679146,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787681069,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787682007,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787676665,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787683019,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787683506,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787681610,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787685607,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787680805,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787687243,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787686217,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787688089,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787686337,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787690298,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787690665,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787686151,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787682148,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787694150,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787695211,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787696625,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787709779,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787712496,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787715062,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787701926,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787718891,"st":2,"op":0,"rev":0,"twr":0.0},{"ts":1787721021,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787721088,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787722765,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787722395,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787722229,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787725663,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787726494,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787727666,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787727715,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787727547,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787729054,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787731091,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787727976,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787733538,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787732751,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787734353,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787738658,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787737701,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787739009,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787742859,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787740827,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787744178,"st":2,"op":0,"rev":0,"twr":0.0},{"ts":1787740957,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787733864,"st":2,"op":0,"rev":0,"twr":0.0},{"ts":1787738443,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787748505,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787748978,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787749869,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787751294,"st":2,"op":0,"rev":0,"twr":0.0},{"ts":1787740863,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787758766,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787751085,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787743902,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787757294,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787764728,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787764332,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787766902,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787769128,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787769504,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787766171,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787770787,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787771418,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787683239,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787772101,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787773196,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787773821,"st":14,"op":0,"rev":0,"twr":9700.0},{"ts":1787776667,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787782063,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787786393,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787795440,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787803537,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787814540,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787685958,"st":14,"op":0,"rev":0,"twr":9700.0},{"ts":1787689806,"st":14,"op":0,"rev":0,"twr":9700.0},{"ts":1787829898,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787830815,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787836710,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787695330,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787744519,"st":4,"op":0,"rev":0,"twr":0.0},{"ts":1787748354,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787685237,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787856366,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787773939,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787857383,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787859094,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787868901,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787897757,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787918405,"st":0,"op":0,"rev":0,"twr":0.0},{"ts":1787822829,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787923464,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787898915,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787929912,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787928261,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787848426,"st":4,"op":0,"rev":0,"twr":0.0},{"ts":1787942071,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787811930,"st":1,"op":1,"rev":0,"twr":0.0},{"ts":1787855088,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787675714,"st":2,"op":0,"rev":0,"twr":0.0},{"ts":1787999119,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788008547,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1788008511,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788012115,"st":12,"op":0,"rev":0,"twr":0.0},{"ts":1788010955,"st":12,"op":0,"rev":0,"twr":0.0},{"ts":1788077972,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788092323,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1788110753,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788113387,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787769324,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788119892,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788118885,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788135846,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787993633,"st":12,"op":1,"rev":0,"twr":0.0},{"ts":1788183656,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788070225,"st":14,"op":0,"rev":0,"twr":9700.0},{"ts":1788191855,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788200019,"st":2,"op":0,"rev":0,"twr":0.0},{"ts":1788203288,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788218954,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788218928,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788252422,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787847977,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1788268118,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787684627,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788285468,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788270484,"st":14,"op":0,"rev":0,"twr":9700.0},{"ts":1788299772,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1788338858,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788074001,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788373593,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788382254,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787801049,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788077895,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787680239,"st":14,"op":0,"rev":0,"twr":9700.0},{"ts":1788257038,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788101675,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788448945,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1788082151,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788500088,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1788006665,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1788364341,"st":14,"op":0,"rev":0,"twr":9700.0},{"ts":1787762652,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788453589,"st":14,"op":0,"rev":0,"twr":9700.0},{"ts":1787679323,"st":7,"op":0,"rev":0,"twr":0.0}]},{"id":"zKaCIGJtRCI","title":"Как работают DEX, AMM и пулы ликвидности для новичков","channel":"CryptoInside","published":"2026-05-30","views":9581,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"cashflow","func":"authority","expert":"Иван","known":true,"n":14,"read":7,"checkout":3,"tw":0,"twRev":0,"op":1,"won":0,"rev":0,"first":1784829115,"leads":[{"ts":1784897388,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1784864709,"st":1,"op":1,"rev":0,"twr":0.0},{"ts":1784829115,"st":9,"op":0,"rev":0,"twr":0.0},{"ts":1785249517,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1785527626,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1786482708,"st":9,"op":0,"rev":0,"twr":0.0},{"ts":1786658489,"st":9,"op":0,"rev":0,"twr":0.0},{"ts":1786733422,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787086816,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1787487696,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787678326,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787078190,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788118774,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788207952,"st":1,"op":0,"rev":0,"twr":0.0}]},{"id":"87d0TKo407A","title":"Самое скучное видео про крипту, которое сэкономит тебе деньги","channel":"CryptoInside","published":"2026-04-28","views":13927,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"beginner","func":"belief_shift","expert":"Иван","known":true,"n":13,"read":8,"checkout":2,"tw":1,"twRev":9700.0,"op":1,"won":0,"rev":0,"first":1784890767,"leads":[{"ts":1784890767,"st":5,"op":1,"rev":0,"twr":0.0},{"ts":1785220656,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1785412981,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1786800987,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787050231,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787425794,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787567904,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1787740979,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1787741704,"st":9,"op":0,"rev":0,"twr":0.0},{"ts":1787749556,"st":14,"op":0,"rev":0,"twr":9700.0},{"ts":1788166692,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788087287,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1788493566,"st":7,"op":0,"rev":0,"twr":0.0}]},{"id":"header","title":"","channel":"","published":"","views":0,"fmt":"","inCatalog":false,"postFunnel":false,"cluster":"","func":"","expert":"","known":true,"n":12,"read":8,"checkout":4,"tw":0,"twRev":0,"op":2,"won":0,"rev":0,"first":1785243854,"leads":[{"ts":1785243854,"st":9,"op":0,"rev":0,"twr":0.0},{"ts":1785268735,"st":3,"op":1,"rev":0,"twr":0.0},{"ts":1785921540,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1786516395,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1786975371,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787135031,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1786359329,"st":12,"op":1,"rev":0,"twr":0.0},{"ts":1787287537,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787133037,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1787813333,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787727791,"st":9,"op":0,"rev":0,"twr":0.0},{"ts":1788118964,"st":9,"op":0,"rev":0,"twr":0.0}]},{"id":"fvpkc_fimLk","title":"Топ перспективных криптовалют для роста в 2026","channel":"CryptoInside","published":"2026-05-28","views":13435,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"beginner","func":"discovery","expert":"Иван","known":true,"n":11,"read":6,"checkout":0,"tw":0,"twRev":0,"op":2,"won":1,"rev":99900,"first":1784662767,"leads":[{"ts":1784662767,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1784767530,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1786518334,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1786620690,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1784897343,"st":1,"op":1,"rev":99900,"twr":0.0},{"ts":1785216598,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787694618,"st":6,"op":0,"rev":0,"twr":0.0},{"ts":1788002602,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788096549,"st":3,"op":1,"rev":0,"twr":0.0},{"ts":1785060580,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1784985575,"st":7,"op":0,"rev":0,"twr":0.0}]},{"id":"CDBbclNkFpU","title":"Как я путешествую в 10 раз дешевле всех остальных","channel":"CryptoInside","published":"2026-05-23","views":8862,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"offtopic","func":"discovery","expert":"Иван","known":true,"n":6,"read":2,"checkout":2,"tw":0,"twRev":0,"op":1,"won":0,"rev":0,"first":1784901689,"leads":[{"ts":1784901689,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1785623254,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1786427469,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1786567486,"st":12,"op":2,"rev":0,"twr":0.0},{"ts":1787309525,"st":9,"op":0,"rev":0,"twr":0.0},{"ts":1787963968,"st":2,"op":0,"rev":0,"twr":0.0}]},{"id":"ZnFDOXl7Q-I","title":"Как Wi-Fi следит за тобой? | Эдвард Сноуден","channel":"CryptoInside","published":"2020-02-14","views":1517229,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"offtopic","func":"discovery","expert":"Иван","known":true,"n":6,"read":5,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1785305815,"leads":[{"ts":1785305815,"st":2,"op":0,"rev":0,"twr":0.0},{"ts":1785316387,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1785960577,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787258544,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1787901083,"st":7,"op":0,"rev":0,"twr":0.0},{"ts":1788357699,"st":7,"op":0,"rev":0,"twr":0.0}]},{"id":"9m1DphN7MhQ","title":"Вас заставили поверить, что активы нужно продавать","channel":"CryptoInside","published":"2026-06-09","views":7673,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"capital","func":"belief_shift","expert":"Иван","known":true,"n":5,"read":3,"checkout":2,"tw":1,"twRev":9700.0,"op":1,"won":0,"rev":0,"first":1784832271,"leads":[{"ts":1784832271,"st":4,"op":0,"rev":0,"twr":0.0},{"ts":1784905829,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1788281420,"st":9,"op":0,"rev":0,"twr":0.0},{"ts":1788283254,"st":14,"op":1,"rev":0,"twr":9700.0},{"ts":1786203120,"st":7,"op":0,"rev":0,"twr":0.0}]},{"id":"DAzHwXYjEwc","title":"Как криптокошельки незаметно съедают ТВОИ деньги","channel":"CryptoInside","published":"2026-05-07","views":12679,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"beginner","func":"belief_shift","expert":"Иван","known":true,"n":5,"read":1,"checkout":1,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1785139733,"leads":[{"ts":1785139733,"st":2,"op":0,"rev":0,"twr":0.0},{"ts":1786396823,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1786869731,"st":5,"op":0,"rev":0,"twr":0.0},{"ts":1788111658,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1788364947,"st":13,"op":0,"rev":0,"twr":0.0}]},{"id":"74ZYHn5V4Wo","title":"Какой криптокошелек выбрать?","channel":"CryptoInside","published":"2024-05-18","views":168052,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"beginner","func":"discovery","expert":"Иван","known":true,"n":4,"read":1,"checkout":1,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1784798093,"leads":[{"ts":1784798093,"st":3,"op":0,"rev":0,"twr":0.0},{"ts":1785080499,"st":9,"op":0,"rev":0,"twr":0.0},{"ts":1785387412,"st":1,"op":0,"rev":0,"twr":0.0},{"ts":1785659124,"st":4,"op":0,"rev":0,"twr":0.0}]},{"id":"C9mvNSBgwUc","title":"Ai заставил меня продать свои BTC, чтобы выйти на пенсию","channel":"CryptoInside","published":"2026-04-30","views":12000,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"capital","func":"belief_shift","expert":"Иван","known":true,"n":2,"read":1,"checkout":0,"tw":0,"twRev":0,"op":1,"won":0,"rev":0,"first":1786667917,"leads":[{"ts":1786667917,"st":1,"op":1,"rev":0,"twr":0.0},{"ts":1788015570,"st":7,"op":0,"rev":0,"twr":0.0}]},{"id":"2XXmmgMrlH8","title":"БИТКОИН заменит не только золото, но и ЭТОТ рынок в $345 ТРИЛЛИОНОВ долларов","channel":"CryptoInside","published":"2026-05-19","views":14834,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"capital","func":"belief_shift","expert":"Иван","known":true,"n":2,"read":1,"checkout":1,"tw":1,"twRev":9700.0,"op":0,"won":0,"rev":0,"first":1787411966,"leads":[{"ts":1787411966,"st":2,"op":0,"rev":0,"twr":0.0},{"ts":1788267750,"st":14,"op":0,"rev":0,"twr":9700.0}]},{"id":"Tva_tP_wXeE","title":"Не бери ипотеку! Ты можешь купить 2-3 квартиры за наличку без долгов и банков","channel":"CryptoInside","published":"2026-05-12","views":8590,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"capital","func":"belief_shift","expert":"Иван","known":true,"n":1,"read":0,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1787089348,"leads":[{"ts":1787089348,"st":2,"op":0,"rev":0,"twr":0.0}]},{"id":"ka5rZOBwRug","title":"Мой опыт инвестиций: Жесткие выводы после 10 лет","channel":"CryptoInside","published":"2026-03-27","views":13079,"fmt":"видео","inCatalog":true,"postFunnel":false,"cluster":"capital","func":"authority","expert":"Иван","known":true,"n":1,"read":0,"checkout":0,"tw":0,"twRev":0,"op":0,"won":0,"rev":0,"first":1788366058,"leads":[{"ts":1788366058,"st":1,"op":0,"rev":0,"twr":0.0}]}];
+const SILENT    = [{"id":"UX0WkWLxVjE","title":"Web3 Academy Live Stream","published":"2026-09-03","views":0,"channel":"Web3 Academy"},{"id":"e9L-BrXayy8","title":"Моя крипта зависла на 125 дней — Ai вернул ее за 5 минут","published":"2026-08-26","views":10766,"channel":"CryptoInside"},{"id":"dpsARnQ6P_c","title":"Криптовалюта умерла и вот причем здесь Ai | Диванная аналитика","published":"2026-08-17","views":13547,"channel":"CryptoInside"},{"id":"fseveAJ8VK4","title":"Самое важное о криптовалюте за 51 минуту","published":"2026-08-13","views":6776,"channel":"CryptoInside"},{"id":"PDgV6gGIT68","title":"Скрытая стратегия BlackRock, которую стоит понять каждому инвестору","published":"2026-08-08","views":10947,"channel":"CryptoInside"}];
 const CLUSTERS  = {"beginner":"Новички в крипте","cashflow":"Кешфлоу и DeFi","capital":"Управление капиталом","offtopic":"Вне тематики","":"Не расклассифицировано"};
 const FUNCTIONS = {"discovery":"Discovery","authority":"Authority","belief_shift":"Belief Shift","money_maker":"Money Maker","event":"Event","":"Не размечено"};
-const META      = {"registry_source":"registry.csv","registry_size":20,"unclassified":8,"unconfirmed":20,"md_total":624,"pr_total":0,"diag_total":2,"op_total":8041};
+const FUNCDESC  = {"discovery":"Приводит новую аудиторию, которая нас ещё не знает. Широкая тема, расчёт на поиск и рекомендации.","authority":"Показывает экспертизу: объясняет сложное просто. Строит доверие к эксперту, а не продаёт.","belief_shift":"Меняет убеждение, которое мешает купить. Например «крипта — это казино» → «это инструмент управления капиталом».","money_maker":"Ведёт к продаже напрямую: результат, кейсы, разбор оффера. Смотрит тёплая аудитория.","event":"Привязан к событию: запуск, вебинар, инфоповод. Даёт всплеск и быстро выдыхается.","":"Функция ещё не проставлена в справочнике."};
+const META      = {"registry_source":"registry.csv","registry_size":14,"unclassified":1,"unconfirmed":14,"catalogSize":865,"ytError":"","funnelStart":"2026-07-21","preFunnel":13,"md_total":611,"pr_total":0,"diag_total":2,"op_total":8038};
 
 const S_READ = 6, S_PAID = 14;
 const WEEK = 7*24*3600;
+const MAX_WEEKS = 9;
 
 const fmtN = n => Math.round(n).toLocaleString('ru-RU');
+const fmt1 = n => n.toLocaleString('ru-RU', {maximumFractionDigits:1});
 const pct  = (a,b) => b ? (100*a/b).toFixed(1) : '0.0';
-const esc  = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc  = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+                  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dateStr = d => d.getFullYear() + '-' +
+  String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const ruDate = s => s ? s.split('-').reverse().slice(0,2).join('.') + '.' + s.slice(2,4) : '—';
 
-const totals = VIDEOS.reduce((a,v) => ({
-  n: a.n + v.n, tw: a.tw + v.tw, twRev: a.twRev + v.twRev, rev: a.rev + v.rev,
-}), {n:0, tw:0, twRev:0, rev:0});
+const funnelStartTs = META.funnelStart
+  ? Math.floor(new Date(META.funnelStart + 'T00:00:00').getTime()/1000) : 0;
 
-document.getElementById('sVideos').textContent = fmtN(VIDEOS.length);
-document.getElementById('sLeads').textContent  = fmtN(totals.n);
-document.getElementById('sTw').textContent     = fmtN(totals.tw);
-document.getElementById('sTwRev').textContent  = fmtN(totals.twRev) + ' ₽';
-document.getElementById('sRev').textContent    = fmtN(totals.rev) + ' ₽';
-document.getElementById('sRpl').textContent    =
-  fmtN(VIDEOS.length ? (totals.rev + totals.twRev) / VIDEOS.length : 0) + ' ₽';
+/* ── Состояние фильтров ───────────────────────────────────────────────────── */
+let fromTs = 0, toTs = 4e9, channel = '__ALL__';
 
-/* ── 1. Единицы контента ── */
-document.getElementById('videoBody').innerHTML = VIDEOS.map(v => {
-  const rev = v.rev;
-  const cl = v.cluster
-    ? `<span class="tag" title="${esc(CLUSTERS[v.cluster] || v.cluster)}">${esc(CLUSTERS[v.cluster] || v.cluster)}</span>`
-    : '<span class="tag none">не задан</span>';
-  const fn = v.func
-    ? `<span class="tag f">${esc(FUNCTIONS[v.func] || v.func)}</span>`
-    : '<span class="tag none">не задана</span>';
-  const title = v.title || '<span class="dim">нет в справочнике</span>';
-  return `<tr>
-    <td class="l"><div class="ttl" title="${esc(v.title)}">${title}</div>
-        <div class="vid" title="${esc(v.id)}">${esc(v.id)}</div></td>
-    <td class="l"><span class="dim">${esc(v.platform || v.src)}</span></td>
-    <td class="l">${cl}</td><td class="l">${fn}</td>
-    <td>${fmtN(v.n)}</td>
-    <td>${fmtN(v.read)} <span class="dim">${pct(v.read,v.n)}%</span></td>
-    <td>${fmtN(v.checkout)}</td>
-    <td class="${v.tw?'good':'dim'}">${fmtN(v.tw)}</td>
-    <td class="${v.tw?'good':'dim'}">${pct(v.tw,v.n)}%</td>
-    <td class="${v.twRev?'warn':'dim'}">${fmtN(v.twRev)} ₽</td>
-    <td>${fmtN(v.op)}</td>
-    <td class="${rev?'good':'dim'}">${fmtN(rev)} ₽</td></tr>`;
-}).join('') || '<tr><td colspan="12" class="dim">Нет данных</td></tr>';
+/* ── Пересчёт ролика под текущий фильтр дат ───────────────────────────────── */
+function slice(v) {
+  const leads = v.leads.filter(l => l.ts >= fromTs && l.ts <= toTs);
+  const paid  = leads.filter(l => l.st >= S_PAID);
+  return {
+    ...v,
+    n: leads.length,
+    read: leads.filter(l => l.st >= S_READ).length,
+    checkout: leads.filter(l => l.st >= 9).length,
+    tw: paid.length,
+    twRev: paid.reduce((s,l) => s + l.twr, 0),
+    op: leads.filter(l => l.op > 0).length,
+    rev: leads.reduce((s,l) => s + l.rev, 0),
+    leadsF: leads,
+  };
+}
 
-/* ── Агрегация по произвольному ключу ── */
-function aggregate(keyFn, names, minLeads) {
+function currentVideos() {
+  return VIDEOS
+    .filter(v => channel === '__ALL__' || v.channel === channel)
+    .map(slice)
+    .filter(v => v.n > 0)
+    .sort((a,b) => b.n - a.n);
+}
+
+/* ── 1. Ролики ────────────────────────────────────────────────────────────── */
+function renderVideos(vs) {
+  document.getElementById('videoBody').innerHTML = vs.map(v => {
+    const rev  = v.rev + v.twRev;
+    const cName = CLUSTERS[v.cluster] || v.cluster;
+    const fName = FUNCTIONS[v.func] || v.func;
+    const cl = v.cluster
+      ? `<span class="tag" title="${esc(cName)}">${esc(cName)}</span>`
+      : '<span class="tag none">не задан</span>';
+    const fn = v.func
+      ? `<span class="tag f" title="${esc(fName)}: ${esc(FUNCDESC[v.func]||'')}">${esc(fName)}</span>`
+      : '<span class="tag none">не задана</span>';
+    const title = v.title || `<span class="dim">нет в каталоге YouTube</span>`;
+    const perK  = v.views ? 1000*v.n/v.views : 0;
+    const revK  = v.views ? 1000*rev/v.views : 0;
+    return `<tr>
+      <td class="l"><div class="ttl" title="${esc(v.title)} · ${esc(v.channel)}">${title}</div>
+          <div class="vid" title="${esc(v.id)}">${esc(v.id)}</div></td>
+      <td class="l">${cl}</td><td class="l">${fn}</td>
+      <td class="dim">${ruDate(v.published)}</td>
+      <td class="${v.views?'':'na'}">${v.views ? fmtN(v.views) : '—'}</td>
+      <td>${fmtN(v.n)}</td>
+      <td class="${perK>=5?'good':''}">${v.views ? fmt1(perK) : '—'}</td>
+      <td>${fmtN(v.read)} <span class="dim">${pct(v.read,v.n)}%</span></td>
+      <td class="${v.tw?'good':'dim'}">${fmtN(v.tw)} <span class="dim">${pct(v.tw,v.n)}%</span></td>
+      <td class="${v.twRev?'warn':'dim'}">${fmtN(v.twRev)} ₽</td>
+      <td class="${v.rev?'good':'dim'}">${fmtN(v.rev)} ₽</td>
+      <td class="${revK?'good':'dim'}">${v.views ? fmtN(revK) + ' ₽' : '—'}</td></tr>`;
+  }).join('') || '<tr><td colspan="12" class="dim">За выбранный период лидов нет</td></tr>';
+}
+
+/* ── Агрегация ────────────────────────────────────────────────────────────── */
+function aggregate(vs, keyFn, names, minLeads) {
   const groups = {};
-  VIDEOS.forEach(v => (groups[keyFn(v)] = groups[keyFn(v)] || []).push(v));
-  return Object.entries(groups).map(([k, vs]) => {
-    const sum = f => vs.reduce((s,v) => s + f(v), 0);
+  vs.forEach(v => (groups[keyFn(v)] = groups[keyFn(v)] || []).push(v));
+  return Object.entries(groups).map(([k, g]) => {
+    const sum = f => g.reduce((s,v) => s + f(v), 0);
     const n = sum(v => v.n);
     return {
-      key: k, label: names[k] || k, videos: vs.length, n,
-      read: sum(v => v.read), tw: sum(v => v.tw),
-      rev: sum(v => v.rev + v.twRev),
-      thin: n < minLeads,
+      key: k, label: names[k] || k, videos: g.length, n,
+      views: sum(v => v.views), read: sum(v => v.read), tw: sum(v => v.tw),
+      rev: sum(v => v.rev + v.twRev), thin: n < minLeads,
     };
   }).sort((a,b) => b.rev - a.rev || b.n - a.n);
 }
 
-/* ── 2. Кластеры ── */
-document.getElementById('clusterBody').innerHTML =
-  aggregate(v => v.cluster, CLUSTERS, 20).map(g => `
-    <tr><td class="l">${esc(g.label)}${g.thin ? ' <span class="tag none">мало данных</span>' : ''}</td>
-      <td>${g.videos}</td><td>${fmtN(g.n)}</td>
-      <td>${fmtN(g.n/g.videos)}</td>
-      <td>${fmtN(g.read)} <span class="dim">${pct(g.read,g.n)}%</span></td>
-      <td class="${g.tw?'good':'dim'}">${fmtN(g.tw)}</td>
-      <td class="${g.tw?'good':'dim'}">${pct(g.tw,g.n)}%</td>
-      <td class="${g.rev?'good':'dim'}">${fmtN(g.rev)} ₽</td>
-      <td class="${g.rev?'good':'dim'}">${fmtN(g.rev/g.videos)} ₽</td></tr>`).join('');
+function renderClusters(vs) {
+  document.getElementById('clusterBody').innerHTML =
+    aggregate(vs, v => v.cluster, CLUSTERS, 20).map(g => `
+      <tr><td class="l">${esc(g.label)}${g.thin ? ' <span class="tag none">мало данных</span>' : ''}</td>
+        <td>${g.videos}</td>
+        <td class="${g.views?'':'na'}">${g.views ? fmtN(g.views) : '—'}</td>
+        <td>${fmtN(g.n)}</td>
+        <td>${g.views ? fmt1(1000*g.n/g.views) : '—'}</td>
+        <td>${fmtN(g.read)} <span class="dim">${pct(g.read,g.n)}%</span></td>
+        <td class="${g.tw?'good':'dim'}">${fmtN(g.tw)}</td>
+        <td class="${g.tw?'good':'dim'}">${pct(g.tw,g.n)}%</td>
+        <td class="${g.rev?'good':'dim'}">${fmtN(g.rev)} ₽</td>
+        <td class="${g.rev&&g.views?'good':'dim'}">${g.views ? fmtN(1000*g.rev/g.views) + ' ₽' : '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="10" class="dim">Нет данных</td></tr>';
+}
 
-/* ── 3. Функции ── */
-document.getElementById('funcBody').innerHTML =
-  aggregate(v => v.func, FUNCTIONS, 20).map(g => `
-    <tr><td class="l">${esc(g.label)}${g.thin ? ' <span class="tag none">мало данных</span>' : ''}</td>
-      <td>${g.videos}</td><td>${fmtN(g.n)}</td>
-      <td>${fmtN(g.read)} <span class="dim">${pct(g.read,g.n)}%</span></td>
-      <td class="${g.tw?'good':'dim'}">${fmtN(g.tw)}</td>
-      <td class="${g.tw?'good':'dim'}">${pct(g.tw,g.n)}%</td>
-      <td class="${g.rev?'good':'dim'}">${fmtN(g.rev)} ₽</td></tr>`).join('');
+function renderFuncs(vs) {
+  document.getElementById('funcBody').innerHTML =
+    aggregate(vs, v => v.func, FUNCTIONS, 20).map(g => `
+      <tr><td class="l"><b>${esc(g.label)}</b>${g.thin ? ' <span class="tag none">мало данных</span>' : ''}</td>
+        <td class="l fdesc">${esc(FUNCDESC[g.key] || '')}</td>
+        <td>${g.videos}</td><td>${fmtN(g.n)}</td>
+        <td>${fmtN(g.read)} <span class="dim">${pct(g.read,g.n)}%</span></td>
+        <td class="${g.tw?'good':'dim'}">${fmtN(g.tw)}</td>
+        <td class="${g.tw?'good':'dim'}">${pct(g.tw,g.n)}%</td>
+        <td class="${g.rev?'good':'dim'}">${fmtN(g.rev)} ₽</td>
+      </tr>`).join('') || '<tr><td colspan="8" class="dim">Нет данных</td></tr>';
+}
 
-/* ── 4. Раскрытие на дистанции ── */
-const maxWeeks = Math.min(8, Math.max(1, ...VIDEOS.map(v =>
-  Math.ceil((Math.max(...v.leads.map(l => l.ts)) - v.first) / WEEK) + 1)));
-let html = '<thead><tr><th class="l">Единица контента</th><th>Всего</th>' +
-  Array.from({length: maxWeeks}, (_,i) => `<th>нед. ${i+1}</th>`).join('') + '</tr></thead><tbody>';
-const peak = Math.max(1, ...VIDEOS.flatMap(v => {
-  const b = Array(maxWeeks).fill(0);
-  v.leads.forEach(l => { const w = Math.floor((l.ts - v.first)/WEEK); if (w < maxWeeks) b[w]++; });
-  return b;
-}));
-VIDEOS.forEach(v => {
-  const b = Array(maxWeeks).fill(0);
-  v.leads.forEach(l => { const w = Math.floor((l.ts - v.first)/WEEK); if (w < maxWeeks) b[w]++; });
-  const label = v.title || v.id;
-  html += `<tr><td class="l" title="${esc(label)}">${esc(label)}</td>
-           <td class="l" style="color:var(--text)">${fmtN(v.n)}</td>`;
-  b.forEach(c => {
-    html += c === 0 ? '<td class="empty">·</td>'
-      : `<td style="background:rgba(0,188,212,${(0.12+0.8*c/peak).toFixed(2)})">${c}</td>`;
+/* ── 4. Когорты от даты публикации ────────────────────────────────────────── */
+function renderCohort() {
+  // Только ролики, вышедшие уже при работающей воронке: для остальных «неделя 0»
+  // приходится на время, когда лиды ещё не собирались, и строка была бы пустой
+  // не потому, что ролик не сработал, а потому, что мерить было нечем.
+  const rows = VIDEOS
+    .filter(v => v.postFunnel && (channel === '__ALL__' || v.channel === channel))
+    .map(v => ({id:v.id, title:v.title, published:v.published, leads:v.leads}))
+    .concat(SILENT
+      .filter(s => channel === '__ALL__' || s.channel === channel)
+      .map(s => ({id:s.id, title:s.title, published:s.published, leads:[]})))
+    .sort((a,b) => (b.published || '').localeCompare(a.published || ''));
+
+  const skipped = VIDEOS.filter(v => !v.postFunnel &&
+    (channel === '__ALL__' || v.channel === channel));
+  document.getElementById('cohortNote').innerHTML = skipped.length
+    ? `<br><b>В таблице ${rows.length} ролик(ов), опубликованных после ${ruDate(META.funnelStart)}</b> — ` +
+      `дня, с которого воронка начала собирать лиды. Ещё ${skipped.length} ролик(ов) дали лиды, ` +
+      `но вышли раньше: у них «неделя 0» пришлась на время без трекинга, и разрез по неделям ` +
+      `от публикации для них посчитать не из чего. Их результаты видны в таблице 1.`
+    : '';
+
+  if (!rows.length) {
+    document.getElementById('cohortTable').innerHTML =
+      '<tbody><tr><td class="l dim">Нет роликов, опубликованных после старта трекинга</td></tr></tbody>';
+    return;
+  }
+
+  const now = Math.floor(Date.now()/1000);
+  const pubTs = r => Math.floor(new Date(r.published + 'T00:00:00').getTime()/1000);
+  const weeksAlive = r => Math.min(MAX_WEEKS, Math.floor((now - pubTs(r))/WEEK) + 1);
+  const maxWeeks = Math.max(1, ...rows.map(weeksAlive));
+  const done = (p, w) => p + (w+1)*WEEK <= now;   // неделя завершилась целиком
+
+  const bucketsOf = r => {
+    const p = pubTs(r), b = Array(maxWeeks).fill(0);
+    r.leads.forEach(l => {
+      const w = Math.floor((l.ts - p)/WEEK);
+      if (w >= 0 && w < maxWeeks) b[w]++;
+    });
+    return b;
+  };
+  const peak = Math.max(1, ...rows.flatMap(bucketsOf));
+
+  let html = '<thead><tr><th class="l">Ролик</th><th>Опубл.</th><th>Всего</th>' +
+    Array.from({length: maxWeeks}, (_,i) => `<th>нед. ${i}</th>`).join('') + '</tr></thead><tbody>';
+  rows.forEach(r => {
+    const p = pubTs(r), b = bucketsOf(r);
+    const alive = weeksAlive(r);
+    const label = r.title || r.id;
+    html += `<tr><td class="l" title="${esc(label)}">${esc(label)}</td>
+             <td class="l dim">${ruDate(r.published)}</td>
+             <td class="l" style="color:var(--text)">${fmtN(r.leads.length)}</td>`;
+    for (let w = 0; w < maxWeeks; w++) {
+      const weekEnd = p + (w+1)*WEEK;
+      if (w >= alive)                     html += '<td class="notrack" title="Неделя ещё не наступила"></td>';
+      else if (weekEnd <= funnelStartTs)  html += '<td class="notrack" title="Неделя прошла до старта трекинга"></td>';
+      else if (b[w] === 0 && !done(p, w)) html += '<td class="notrack" title="Неделя ещё идёт"></td>';
+      else if (b[w] === 0)                html += '<td class="zero">·</td>';
+      else html += `<td style="background:rgba(0,188,212,${(0.12+0.8*b[w]/peak).toFixed(2)})">${b[w]}</td>`;
+    }
+    html += '</tr>';
   });
-  html += '</tr>';
-});
-document.getElementById('cohortTable').innerHTML = html + '</tbody>';
+  document.getElementById('cohortTable').innerHTML = html + '</tbody>';
+}
 
-/* ── 5. Что требует внимания ── */
-const noCluster = VIDEOS.filter(v => !v.cluster);
-const noReg     = VIDEOS.filter(v => !v.known);
-let todo = '';
-const row = (label, val, cls, hint) =>
-  `<tr><td class="l">${label}</td><td class="${cls}">${val}</td><td class="dim">${hint}</td></tr>`;
-todo += row('Единиц контента без кластера', noCluster.length,
-  noCluster.length ? 'warn' : 'good',
-  noCluster.length ? noCluster.map(v => v.id).join(', ') : 'все размечены');
-todo += row('Единиц контента вне справочника', noReg.length,
-  noReg.length ? 'bad' : 'good',
-  noReg.length ? noReg.map(v => v.id).join(', ') : '—');
-const twNoPrice = VIDEOS.reduce((s,v) => s + (v.twRev === 0 ? v.tw : 0), 0);
-todo += row('Оплат трипвайера без суммы в CRM', twNoPrice, twNoPrice ? 'bad' : 'good',
-  'поле price у сделки пустое — выручку трипвайера из CRM посчитать нельзя');
-todo += row('Классификаций, не подтверждённых вручную', META.unconfirmed,
-  META.unconfirmed ? 'warn' : 'good', 'колонка confirmed в справочнике');
-todo += row('Записей справочника без единого лида', SILENT.length,
-  SILENT.length ? 'warn' : 'dim',
-  SILENT.length ? SILENT.map(s => s.title || s.id).join('; ') : '—');
-document.getElementById('todoBody').innerHTML = todo;
+/* ── 5. Что требует внимания ──────────────────────────────────────────────── */
+function renderTodo(vs) {
+  const row = (label, val, cls, hint) =>
+    `<tr><td class="l">${label}</td><td class="${cls}">${val}</td>
+         <td class="dim" title="${esc(hint)}">${hint}</td></tr>`;
+  const noCluster = vs.filter(v => !v.cluster);
+  const noCat     = vs.filter(v => !v.inCatalog);
+  const twNoPrice = vs.reduce((s,v) => s + (v.twRev === 0 ? v.tw : 0), 0);
+  let todo = '';
+  todo += row('Роликов без кластера', noCluster.length, noCluster.length ? 'warn' : 'good',
+    noCluster.length ? noCluster.map(v => v.id).join(', ') : 'все размечены');
+  todo += row('Меток, которых нет в каталоге YouTube', noCat.length, noCat.length ? 'bad' : 'good',
+    noCat.length ? noCat.map(v => v.id).join(', ') + ' — это не video_id, разметку надо чинить' : '—');
+  todo += row('Оплат трипвайера без суммы', twNoPrice, twNoPrice ? 'bad' : 'good',
+    twNoPrice ? 'сумма не нашлась ни в price, ни в примечании' : 'все оплаты с суммой');
+  todo += row('Классификаций, не подтверждённых вручную', META.unconfirmed,
+    META.unconfirmed ? 'warn' : 'good', 'колонка confirmed в справочнике');
+  todo += row('Роликов после старта трекинга без единого лида', SILENT.length,
+    SILENT.length ? 'warn' : 'dim',
+    SILENT.length ? SILENT.map(s => (s.title||s.id).slice(0,40)).join('; ') : '—');
+  document.getElementById('todoBody').innerHTML = todo;
+}
 
-/* ── Предупреждения ── */
-const msgs = [];
-if (META.unconfirmed) msgs.push(
-  `<b>${META.unconfirmed} из ${META.registry_size}</b> классификаций расставлены черновым автоматом ` +
-  `и ещё не подтверждены — это заготовка для обсуждения, а не факт`);
-msgs.push('колонки просмотров пустые: YouTube Analytics API не подключён (этап 2)');
-const thin = VIDEOS.filter(v => v.n < 20).length;
-if (thin) msgs.push(`у ${thin} из ${VIDEOS.length} единиц контента меньше 20 лидов — по ним выводы делать рано`);
-document.getElementById('stageWarn').innerHTML = 'Ограничения этапа 1: ' + msgs.join('; ') + '.';
+/* ── Общий пересчёт ───────────────────────────────────────────────────────── */
+function renderAll() {
+  const vs = currentVideos();
+  const t = vs.reduce((a,v) => ({
+    n: a.n + v.n, tw: a.tw + v.tw, twRev: a.twRev + v.twRev,
+    rev: a.rev + v.rev, views: a.views + v.views,
+  }), {n:0, tw:0, twRev:0, rev:0, views:0});
 
-document.getElementById('regSrc').textContent = META.registry_source + ` (${META.registry_size} записей)`;
+  document.getElementById('sVideos').textContent = fmtN(vs.length);
+  document.getElementById('sLeads').textContent  = fmtN(t.n);
+  document.getElementById('sTw').textContent     = fmtN(t.tw);
+  document.getElementById('sTwRev').textContent  = fmtN(t.twRev) + ' ₽';
+  document.getElementById('sRev').textContent    = fmtN(t.rev) + ' ₽';
+  document.getElementById('sRpm').textContent    =
+    t.views ? fmtN(1000*(t.rev + t.twRev)/t.views) + ' ₽' : '—';
+
+  renderVideos(vs); renderClusters(vs); renderFuncs(vs); renderCohort(); renderTodo(vs);
+
+  const thin = vs.filter(v => v.n < 20).length;
+  const msgs = [];
+  if (META.unconfirmed) msgs.push(
+    `<b>${META.unconfirmed} из ${META.registry_size}</b> классификаций расставлены черновым ` +
+    `автоматом и ещё не подтверждены — это заготовка для обсуждения, а не факт`);
+  msgs.push('просмотры накопительные за всё время и фильтром по датам не режутся ' +
+            '(нужен Analytics API с OAuth)');
+  if (thin) msgs.push(`у ${thin} из ${vs.length} роликов меньше 20 лидов — по ним выводы делать рано`);
+  document.getElementById('stageWarn').innerHTML = 'Ограничения этапа 1: ' + msgs.join('; ') + '.';
+}
+
+/* ── Управление фильтрами ─────────────────────────────────────────────────── */
+function setRangeNote() {
+  const el = document.getElementById('rangeNote');
+  el.textContent = (fromTs === 0 && toTs > 3e9)
+    ? `Показан весь период наблюдений: с ${ruDate(META.funnelStart)} по сегодня`
+    : `Период: ${new Date(fromTs*1000).toLocaleDateString('ru-RU')} — ` +
+      `${new Date(toTs*1000).toLocaleDateString('ru-RU')}`;
+}
+
+function applyRange(from, to, isAll) {
+  fromTs = from; toTs = to;
+  document.getElementById('allBtn').classList.toggle('active', !!isAll);
+  setRangeNote(); renderAll();
+}
+
+function populateMonths() {
+  const sel = document.getElementById('monthQuick');
+  const names = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль',
+                 'Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  sel.innerHTML = '<option value="">Месяц…</option>';
+  const start = META.funnelStart ? new Date(META.funnelStart + 'T00:00:00') : new Date();
+  const now = new Date();
+  const months = [];
+  let d = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (d <= now) { months.unshift(new Date(d)); d.setMonth(d.getMonth()+1); }
+  months.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m.getFullYear() + '-' + String(m.getMonth()+1).padStart(2,'0');
+    o.textContent = names[m.getMonth()] + ' ' + m.getFullYear();
+    sel.appendChild(o);
+  });
+  sel.onchange = () => {
+    if (!sel.value) return;
+    const [y,m] = sel.value.split('-').map(Number);
+    const from = new Date(y, m-1, 1), to = new Date(y, m, 0);
+    document.getElementById('dateFrom').value = dateStr(from);
+    document.getElementById('dateTo').value   = dateStr(to);
+    applyRange(Math.floor(from.getTime()/1000),
+               Math.floor(new Date(y, m, 0, 23, 59, 59).getTime()/1000), false);
+  };
+}
+
+document.getElementById('applyBtn').onclick = () => {
+  const f = document.getElementById('dateFrom').value;
+  const t = document.getElementById('dateTo').value;
+  if (!f || !t) return;
+  document.getElementById('monthQuick').value = '';
+  applyRange(Math.floor(new Date(f+'T00:00:00').getTime()/1000),
+             Math.floor(new Date(t+'T23:59:59').getTime()/1000), false);
+};
+
+document.getElementById('allBtn').onclick = () => {
+  document.getElementById('monthQuick').value = '';
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  applyRange(0, 4e9, true);
+};
+
+/* Канал: сейчас обе площадки — YouTube, поэтому фильтр режет по каналам.
+   Когда в отчёт вернётся Telegram, здесь появится ещё одна ось. */
+(function buildChannels() {
+  // data-ch несёт исходное значение канала, подпись — человекочитаемую версию.
+  // Смешивать нельзя: у меток вне каталога YouTube канал пустой.
+  const counts = {};
+  VIDEOS.forEach(v => counts[v.channel || ''] = (counts[v.channel || ''] || 0) + v.n);
+  const list = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+  const total = VIDEOS.reduce((s,v) => s + v.n, 0);
+  document.getElementById('channelButtons').innerHTML =
+    `<button class="preset-btn active" data-ch="__ALL__">Все (${total})</button>` +
+    list.map(([c,n]) =>
+      `<button class="preset-btn" data-ch="${esc(c)}">${esc(c || 'вне каталога')} (${n})</button>`
+    ).join('');
+  document.querySelectorAll('#channelButtons .preset-btn').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#channelButtons .preset-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    channel = b.dataset.ch;  // '' — валидное значение, не путать с __ALL__
+    renderAll();
+  });
+})();
+
+document.getElementById('regSrc').textContent =
+  META.registry_source + ` (${META.registry_size} записей)`;
 document.getElementById('metaLine').textContent =
-  `Учитывается вся органика: YouTube, Telegram, блог. Платный трафик — в сквозной воронке.`;
+  `Только YouTube-органика: платный трафик — в сквозной воронке, Telegram вернётся ` +
+  `после наведения порядка в метках. Каталог: ${META.catalogSize} роликов обоих каналов.`;
+
+populateMonths();
+setRangeNote();
+renderAll();
 </script>
 </body>
 </html>

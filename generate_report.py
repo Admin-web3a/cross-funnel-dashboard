@@ -30,6 +30,31 @@ import re
 import urllib.parse
 import urllib.request
 
+def _load_env():
+    """Подхватить .env, если переменных нет в окружении.
+
+    В GitHub Actions всё приходит из секретов, а локально удобнее не помнить,
+    какой файл сорсить перед запуском.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(here, ".env"),
+        os.path.join(here, "..", ".env"),
+        os.path.join(here, "..", "Docs", "Infrastructure", "motivation-calc", ".env"),
+    ]
+    for path in candidates:
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip().strip("'\""))
+
+
+_load_env()
 TOKEN = os.environ["AMO_TOKEN"]
 DOMAIN = os.environ.get("AMO_DOMAIN", "simmihur.amocrm.ru")
 
@@ -287,8 +312,19 @@ def render(journeys, diag_all, meta):
             .replace("__UPDATED__", updated))
 
 
+CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".report-cache.json")
+
 if __name__ == "__main__":
-    j, d, m = build()
+    import sys
+    # --cached переиспользует прошлую выгрузку: полный проход по amoCRM идёт
+    # несколько минут, а при правке вёрстки данные не меняются.
+    if "--cached" in sys.argv and os.path.exists(CACHE):
+        j, d, m = json.load(open(CACHE, encoding="utf-8"))
+        print("Данные из кэша, CRM не опрашивалась")
+    else:
+        j, d, m = build()
+        with open(CACHE, "w", encoding="utf-8") as f:
+            json.dump([j, d, m], f, ensure_ascii=False)
     html = render(j, d, m)
     docs = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
     os.makedirs(docs, exist_ok=True)
