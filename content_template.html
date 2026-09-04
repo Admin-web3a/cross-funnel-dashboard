@@ -26,19 +26,25 @@
 
   .charts { display:flex; flex-direction:column; gap:28px; max-width:1180px; margin:0 auto; }
   .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px 24px; }
+  #videoBody td, .card h2 + .note + div .tbl th { font-size:.8rem; }
+  .tag { font-size:.66rem !important; padding:2px 5px !important; }
+  #videoBody td:nth-child(3) { max-width:136px; }
+  #videoBody td:nth-child(3) .tag { display:inline-block; max-width:126px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
   .card h2 { font-size:1rem; margin-bottom:6px; padding-bottom:10px; border-bottom:1px solid var(--border); }
   .card .note { font-size:.78rem; color:var(--sub); margin:10px 0 16px; line-height:1.55; }
   .card .note b { color:#bdbdbd; }
   code { background:#0d2226; color:var(--accent); padding:1px 5px; border-radius:3px; font-size:.9em; }
 
   .tbl { width:100%; border-collapse:collapse; font-size:.85rem; }
-  .tbl th { text-align:right; color:var(--sub); font-weight:600; padding:8px 8px;
+  .tbl th { text-align:right; color:var(--sub); font-weight:600; padding:8px 6px;
             border-bottom:1px solid var(--border); white-space:nowrap; font-size:.78rem; }
   .tbl th.l, .tbl td.l { text-align:left; }
-  .tbl td { padding:7px 8px; border-bottom:1px solid #222; text-align:right; white-space:nowrap; }
+  .tbl td { padding:7px 6px; border-bottom:1px solid #222; text-align:right; white-space:nowrap; }
   .tbl tr:hover td { background:#1f1f1f; }
-  .ttl { max-width:205px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .vid { font-family:ui-monospace,monospace; font-size:.75rem; color:#666; }
+  .ttl { max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .vid { font-family:ui-monospace,monospace; font-size:.72rem; color:#666;
+         max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .good { color:var(--green); font-weight:700; }
   .warn { color:var(--orange); font-weight:700; }
   .bad  { color:var(--red); font-weight:700; }
@@ -92,14 +98,14 @@
       Ключ склейки — <code>video_id</code> из <code>utm_content</code>. Кластер и функция
       берутся из справочника, а не из метки: метка после публикации неизменна, а
       классификация будет меняться. Сортировка по числу лидов.
-      <b>Колонки «Просмотры» и «Выручка / 1000 просмотров» появятся на этапе 2</b>,
+      <b>Колонки «Просмотры» и «Выручка на 1000 просмотров» появятся на этапе 2</b>,
       когда подключим YouTube Analytics API — сейчас знаменателя нет.
     </p>
     <div style="overflow-x:auto"><table class="tbl">
       <thead><tr>
         <th class="l">Единица контента</th><th class="l">Площадка</th><th class="l">Кластер</th><th class="l">Функция</th>
         <th>Лидов</th><th>Дочитали</th><th>Checkout</th><th>Трипвайер</th><th>CR</th>
-        <th>Выручка ТВ</th><th>В ОП</th><th>Выручка ОП</th><th>Просмотры</th><th>₽/1000</th>
+        <th title="Выручка трипвайера">₽ ТВ</th><th>В ОП</th><th title="Выручка основной воронки продаж">₽ ОП</th>
       </tr></thead>
       <tbody id="videoBody"></tbody>
     </table></div>
@@ -190,7 +196,7 @@ document.getElementById('sRpl').textContent    =
 document.getElementById('videoBody').innerHTML = VIDEOS.map(v => {
   const rev = v.rev;
   const cl = v.cluster
-    ? `<span class="tag">${esc(CLUSTERS[v.cluster] || v.cluster)}</span>`
+    ? `<span class="tag" title="${esc(CLUSTERS[v.cluster] || v.cluster)}">${esc(CLUSTERS[v.cluster] || v.cluster)}</span>`
     : '<span class="tag none">не задан</span>';
   const fn = v.func
     ? `<span class="tag f">${esc(FUNCTIONS[v.func] || v.func)}</span>`
@@ -198,7 +204,7 @@ document.getElementById('videoBody').innerHTML = VIDEOS.map(v => {
   const title = v.title || '<span class="dim">нет в справочнике</span>';
   return `<tr>
     <td class="l"><div class="ttl" title="${esc(v.title)}">${title}</div>
-        <div class="vid">${esc(v.id)}</div></td>
+        <div class="vid" title="${esc(v.id)}">${esc(v.id)}</div></td>
     <td class="l"><span class="dim">${esc(v.platform || v.src)}</span></td>
     <td class="l">${cl}</td><td class="l">${fn}</td>
     <td>${fmtN(v.n)}</td>
@@ -208,9 +214,8 @@ document.getElementById('videoBody').innerHTML = VIDEOS.map(v => {
     <td class="${v.tw?'good':'dim'}">${pct(v.tw,v.n)}%</td>
     <td class="${v.twRev?'warn':'dim'}">${fmtN(v.twRev)} ₽</td>
     <td>${fmtN(v.op)}</td>
-    <td class="${rev?'good':'dim'}">${fmtN(rev)} ₽</td>
-    <td class="na">—</td><td class="na">—</td></tr>`;
-}).join('') || '<tr><td colspan="14" class="dim">Нет данных</td></tr>';
+    <td class="${rev?'good':'dim'}">${fmtN(rev)} ₽</td></tr>`;
+}).join('') || '<tr><td colspan="12" class="dim">Нет данных</td></tr>';
 
 /* ── Агрегация по произвольному ключу ── */
 function aggregate(keyFn, names, minLeads) {
