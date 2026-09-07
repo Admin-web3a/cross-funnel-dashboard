@@ -31,6 +31,7 @@
   .preset-btn:hover { border-color:var(--accent); color:var(--text); }
   .preset-btn.active { border-color:var(--accent); color:var(--accent); background:#0d2226; }
   .ch-bar .preset-btn.active { border-color:var(--purple); color:#a9a2ff; background:#16142e; }
+  .attr-bar .preset-btn.active { border-color:var(--green); color:#81c784; background:#0d1f0e; }
   .filter-bar input[type=date], .filter-bar select {
     background:#161616; border:1px solid var(--border); color:var(--text);
     padding:5px 8px; border-radius:8px; font-size:.78rem; font-family:inherit;
@@ -117,6 +118,18 @@
   <span id="channelButtons"></span>
 </div>
 
+<div class="filter-bar attr-bar">
+  <span class="filter-label">Атрибуция</span>
+  <button class="preset-btn active" id="attrLead"
+    title="Показывает ролики, чьи лиды пришли в выбранный период. Метрики считаются только по лидам внутри периода.">
+    По дате лида
+  </button>
+  <button class="preset-btn" id="attrPub"
+    title="Показывает ролики, опубликованные в выбранный период. Метрики — за весь срок жизни ролика.">
+    По дате публикации
+  </button>
+</div>
+
 <p class="range-note" id="rangeNote"></p>
 
 <div id="stageWarn" class="warnbox"></div>
@@ -143,6 +156,7 @@
       с OAuth. Поэтому при узком периоде «₽/1000» занижена: выручка за период делится
       на просмотры за всё время.
     </p>
+    <p class="note" id="attrModeNote" style="margin-top:0;margin-bottom:14px"></p>
     <div style="overflow-x:auto"><table class="tbl">
       <thead><tr>
         <th class="l">Ролик</th><th class="l">Кластер</th><th class="l">Функция</th>
@@ -253,10 +267,10 @@ const funnelStartTs = META.funnelStart
   ? Math.floor(new Date(META.funnelStart + 'T00:00:00').getTime()/1000) : 0;
 
 /* ── Состояние фильтров ───────────────────────────────────────────────────── */
-let fromTs = 0, toTs = 4e9, channel = '__ALL__';
+let fromTs = 0, toTs = 4e9, channel = '__ALL__', attrMode = 'lead';
 
-/* ── Пересчёт ролика под текущий фильтр дат ───────────────────────────────── */
-function slice(v) {
+/* ── Пересчёт ролика под фильтр дат по лиду (текущий режим) ──────────────── */
+function sliceByLead(v) {
   const leads = v.leads.filter(l => l.ts >= fromTs && l.ts <= toTs);
   const paid  = leads.filter(l => l.st >= S_PAID);
   return {
@@ -272,12 +286,45 @@ function slice(v) {
   };
 }
 
+/* ── Пересчёт ролика: все лиды за всю жизнь (режим «по публикации») ─────── */
+function sliceAll(v) {
+  const leads = v.leads;
+  const paid  = leads.filter(l => l.st >= S_PAID);
+  return {
+    ...v,
+    n: leads.length,
+    read: leads.filter(l => l.st >= S_READ).length,
+    checkout: leads.filter(l => l.st >= 9).length,
+    tw: paid.length,
+    twRev: paid.reduce((s,l) => s + l.twr, 0),
+    op: leads.filter(l => l.op > 0).length,
+    rev: leads.reduce((s,l) => s + l.rev, 0),
+    leadsF: leads,
+  };
+}
+
 function currentVideos() {
-  return VIDEOS
-    .filter(v => channel === '__ALL__' || v.channel === channel)
-    .map(slice)
-    .filter(v => v.n > 0)
-    .sort((a,b) => b.n - a.n);
+  const byChannel = VIDEOS.filter(v => channel === '__ALL__' || v.channel === channel);
+
+  if (attrMode === 'lead') {
+    /* Текущий режим: показываем ролики, чьи лиды пришли в период */
+    return byChannel
+      .map(sliceByLead)
+      .filter(v => v.n > 0)
+      .sort((a,b) => b.n - a.n);
+  } else {
+    /* Режим публикации: показываем ролики, опубликованные в период,
+       метрики — за весь срок жизни ролика (без ограничения по дате лида) */
+    return byChannel
+      .filter(v => {
+        if (!v.published) return false;
+        const pubTs = Math.floor(new Date(v.published + 'T00:00:00').getTime()/1000);
+        if (fromTs === 0 && toTs > 3e9) return true; // «Весь период» — все ролики
+        return pubTs >= fromTs && pubTs <= toTs;
+      })
+      .map(sliceAll)
+      .sort((a,b) => b.n - a.n);
+  }
 }
 
 /* ── 1. Ролики ────────────────────────────────────────────────────────────── */
@@ -462,6 +509,16 @@ function renderAll() {
 
   renderVideos(vs); renderClusters(vs); renderFuncs(vs); renderCohort(); renderTodo(vs);
 
+  const modeNote = document.getElementById('attrModeNote');
+  if (attrMode === 'pub') {
+    modeNote.innerHTML =
+      '🟢 Режим <b>«По дате публикации»</b>: в таблице только ролики, опубликованные в выбранный период. ' +
+      'Лиды, выручка и конверсии — за <b>весь срок жизни ролика</b>, не ограниченный периодом.';
+    modeNote.style.display = '';
+  } else {
+    modeNote.style.display = 'none';
+  }
+
   const thin = vs.filter(v => v.n < 20).length;
   const msgs = [];
   if (META.unconfirmed) msgs.push(
@@ -476,10 +533,20 @@ function renderAll() {
 /* ── Управление фильтрами ─────────────────────────────────────────────────── */
 function setRangeNote() {
   const el = document.getElementById('rangeNote');
-  el.textContent = (fromTs === 0 && toTs > 3e9)
-    ? `Показан весь период наблюдений: с ${ruDate(META.funnelStart)} по сегодня`
-    : `Период: ${new Date(fromTs*1000).toLocaleDateString('ru-RU')} — ` +
-      `${new Date(toTs*1000).toLocaleDateString('ru-RU')}`;
+  const isAll = fromTs === 0 && toTs > 3e9;
+  const period = isAll
+    ? `весь период наблюдений (с ${ruDate(META.funnelStart)} по сегодня)`
+    : `${new Date(fromTs*1000).toLocaleDateString('ru-RU')} — ${new Date(toTs*1000).toLocaleDateString('ru-RU')}`;
+
+  if (attrMode === 'lead') {
+    el.textContent = isAll
+      ? `Показан ${period} · атрибуция по дате лида`
+      : `Показаны ролики, чьи лиды пришли ${period} · атрибуция по дате лида`;
+  } else {
+    el.textContent = isAll
+      ? `Показан ${period} · атрибуция по дате публикации · метрики за весь срок жизни ролика`
+      : `Показаны ролики, опубликованные ${period} · метрики за весь срок жизни ролика`;
+  }
 }
 
 function applyRange(from, to, isAll) {
@@ -552,6 +619,20 @@ document.getElementById('allBtn').onclick = () => {
     renderAll();
   });
 })();
+
+/* ── Переключатель атрибуции ──────────────────────────────────────────────── */
+document.getElementById('attrLead').onclick = () => {
+  attrMode = 'lead';
+  document.getElementById('attrLead').classList.add('active');
+  document.getElementById('attrPub').classList.remove('active');
+  setRangeNote(); renderAll();
+};
+document.getElementById('attrPub').onclick = () => {
+  attrMode = 'pub';
+  document.getElementById('attrPub').classList.add('active');
+  document.getElementById('attrLead').classList.remove('active');
+  setRangeNote(); renderAll();
+};
 
 document.getElementById('regSrc').textContent =
   META.registry_source + ` (${META.registry_size} записей)`;

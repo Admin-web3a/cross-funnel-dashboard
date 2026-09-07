@@ -105,10 +105,14 @@ def build():
 
     # Только YouTube-органика: платный трафик живёт в сквозной воронке,
     # Telegram ждёт наведения порядка в метках.
+    import re as _re
+    _YT_ID = _re.compile(r'^[A-Za-z0-9_-]{11}$')
+
     items = {}
     for j in journeys:
-        if j["src"] == "yt" and j["tt"] == "organic":
-            items.setdefault(j["cnt"], []).append(j)
+        cnt = j.get("cnt") or ""
+        if j["src"] == "yt" and j["tt"] == "organic" and _YT_ID.match(cnt):
+            items.setdefault(cnt, []).append(j)
 
     videos = []
     for vid, group in items.items():
