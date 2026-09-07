@@ -155,6 +155,12 @@
       не режет</b> — Data API не отдаёт разбивку по дням, для неё нужен Analytics API
       с OAuth. Поэтому при узком периоде «₽/1000» занижена: выручка за период делится
       на просмотры за всё время.
+      <br><br>
+      <span style="color:#a9a2ff">Фиолетовым</span> отмечены <b>размещения</b>, а не ролики:
+      ссылка стоит в постоянном элементе канала (<code>utm_term=link_in_header</code>),
+      а не под конкретным видео (<code>utm_term=description</code>). Ролика за такой меткой
+      нет, поэтому дата публикации, просмотры и когорты к ней неприменимы — но лиды
+      и выручка вполне реальные.
     </p>
     <p class="note" id="attrModeNote" style="margin-top:0;margin-bottom:14px"></p>
     <div style="overflow-x:auto"><table class="tbl">
@@ -333,13 +339,16 @@ function renderVideos(vs) {
     const rev  = v.rev + v.twRev;
     const cName = CLUSTERS[v.cluster] || v.cluster;
     const fName = FUNCTIONS[v.func] || v.func;
+    const dash = '<span class="dim">—</span>';
     const cl = v.cluster
       ? `<span class="tag" title="${esc(cName)}">${esc(cName)}</span>`
-      : '<span class="tag none">не задан</span>';
+      : (v.placement ? dash : '<span class="tag none">не задан</span>');
     const fn = v.func
       ? `<span class="tag f" title="${esc(fName)}: ${esc(FUNCDESC[v.func]||'')}">${esc(fName)}</span>`
-      : '<span class="tag none">не задана</span>';
-    const title = v.title || `<span class="dim">нет в каталоге YouTube</span>`;
+      : (v.placement ? dash : '<span class="tag none">не задана</span>');
+    const title = v.placement
+      ? `<span style="color:#a9a2ff">${esc(v.title)}</span>`
+      : (v.title || `<span class="dim">нет в каталоге YouTube</span>`);
     const perK  = v.views ? 1000*v.n/v.views : 0;
     const revK  = v.views ? 1000*rev/v.views : 0;
     return `<tr>
@@ -374,8 +383,9 @@ function aggregate(vs, keyFn, names, minLeads) {
 }
 
 function renderClusters(vs) {
+  // Кластеры и функции — свойства роликов; размещения в этих разрезах не участвуют.
   document.getElementById('clusterBody').innerHTML =
-    aggregate(vs, v => v.cluster, CLUSTERS, 20).map(g => `
+    aggregate(vs.filter(v => !v.placement), v => v.cluster, CLUSTERS, 20).map(g => `
       <tr><td class="l">${esc(g.label)}${g.thin ? ' <span class="tag none">мало данных</span>' : ''}</td>
         <td>${g.videos}</td>
         <td class="${g.views?'':'na'}">${g.views ? fmtN(g.views) : '—'}</td>
@@ -391,7 +401,7 @@ function renderClusters(vs) {
 
 function renderFuncs(vs) {
   document.getElementById('funcBody').innerHTML =
-    aggregate(vs, v => v.func, FUNCTIONS, 20).map(g => `
+    aggregate(vs.filter(v => !v.placement), v => v.func, FUNCTIONS, 20).map(g => `
       <tr><td class="l"><b>${esc(g.label)}</b>${g.thin ? ' <span class="tag none">мало данных</span>' : ''}</td>
         <td class="l fdesc">${esc(FUNCDESC[g.key] || '')}</td>
         <td>${g.videos}</td><td>${fmtN(g.n)}</td>
@@ -473,8 +483,10 @@ function renderTodo(vs) {
   const row = (label, val, cls, hint) =>
     `<tr><td class="l">${label}</td><td class="${cls}">${val}</td>
          <td class="dim" title="${esc(hint)}">${hint}</td></tr>`;
-  const noCluster = vs.filter(v => !v.cluster);
-  const noCat     = vs.filter(v => !v.inCatalog);
+  // Размещения (шапка канала) — не ролики: у них нет и не может быть ни
+  // кластера, ни карточки в каталоге, поэтому в список проблем они не идут.
+  const noCluster = vs.filter(v => !v.cluster && !v.placement);
+  const noCat     = vs.filter(v => !v.inCatalog && !v.placement);
   const twNoPrice = vs.reduce((s,v) => s + (v.twRev === 0 ? v.tw : 0), 0);
   let todo = '';
   todo += row('Роликов без кластера', noCluster.length, noCluster.length ? 'warn' : 'good',

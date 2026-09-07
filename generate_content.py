@@ -108,10 +108,19 @@ def build():
     import re as _re
     _YT_ID = _re.compile(r'^[A-Za-z0-9_-]{11}$')
 
+    # Не-видео размещения: ссылка стоит не под роликом, а в постоянном элементе
+    # канала. Ролика за такой меткой нет, поэтому дата публикации, просмотры и
+    # когорты к ней неприменимы, но лиды и выручка — вполне реальные.
+    PLACEMENTS = {
+        "header": "Ссылка в шапке канала",
+    }
+
     items = {}
     for j in journeys:
         cnt = j.get("cnt") or ""
-        if j["src"] == "yt" and j["tt"] == "organic" and _YT_ID.match(cnt):
+        if j["src"] != "yt" or j["tt"] != "organic":
+            continue
+        if _YT_ID.match(cnt) or cnt in PLACEMENTS:
             items.setdefault(cnt, []).append(j)
 
     videos = []
@@ -120,14 +129,18 @@ def build():
         c = catalog.get(vid, {})
         paid = [g for g in group if g["st"] >= core.STAGE_PAID]
         published = c.get("published", "")
+        placement = PLACEMENTS.get(vid, "")
         videos.append({
             "id": vid,
-            "title": c.get("title") or "",
+            "title": placement or c.get("title") or "",
             "channel": c.get("channel") or "",
             "published": published,
             "views": c.get("views") or 0,
             "fmt": c.get("format") or "",
-            "inCatalog": vid in catalog,
+            # Размещение — не ролик: его нечего искать в каталоге YouTube и
+            # незачем помечать как сломанную разметку.
+            "placement": bool(placement),
+            "inCatalog": vid in catalog or bool(placement),
             # Ролик вышел уже при работающей воронке: только для таких
             # когорта «недель от публикации» отражает реальную дистанцию.
             "postFunnel": bool(published) and
