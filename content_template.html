@@ -497,9 +497,10 @@ function renderTodo(vs) {
     twNoPrice ? 'сумма не нашлась ни в price, ни в примечании' : 'все оплаты с суммой');
   todo += row('Классификаций, не подтверждённых вручную', META.unconfirmed,
     META.unconfirmed ? 'warn' : 'good', 'колонка confirmed в справочнике');
-  todo += row('Роликов после старта трекинга без единого лида', SILENT.length,
-    SILENT.length ? 'warn' : 'dim',
-    SILENT.length ? SILENT.map(s => (s.title||s.id).slice(0,40)).join('; ') : '—');
+  const silent = SILENT.filter(s => channel === '__ALL__' || s.channel === channel);
+  todo += row('Роликов после старта трекинга без единого лида', silent.length,
+    silent.length ? 'warn' : 'dim',
+    silent.length ? silent.map(s => (s.title||s.id).slice(0,40)).join('; ') : '—');
   document.getElementById('todoBody').innerHTML = todo;
 }
 
@@ -614,15 +615,22 @@ document.getElementById('allBtn').onclick = () => {
    Когда в отчёт вернётся Telegram, здесь появится ещё одна ось. */
 (function buildChannels() {
   // data-ch несёт исходное значение канала, подпись — человекочитаемую версию.
-  // Смешивать нельзя: у меток вне каталога YouTube канал пустой.
+  // Смешивать нельзя: у размещений вроде шапки канала поле channel пустое.
   const counts = {};
   VIDEOS.forEach(v => counts[v.channel || ''] = (counts[v.channel || ''] || 0) + v.n);
-  const list = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+
+  // Каналы из каталога идут первыми и в фиксированном порядке — кнопка не должна
+  // пропадать только потому, что у канала пока нет лидов.
+  const known = (META.channels || []).map(c => [c, counts[c] || 0]);
+  const rest  = Object.entries(counts)
+    .filter(([c]) => !(META.channels || []).includes(c))
+    .sort((a,b) => b[1] - a[1]);
+
   const total = VIDEOS.reduce((s,v) => s + v.n, 0);
   document.getElementById('channelButtons').innerHTML =
-    `<button class="preset-btn active" data-ch="__ALL__">Все (${total})</button>` +
-    list.map(([c,n]) =>
-      `<button class="preset-btn" data-ch="${esc(c)}">${esc(c || 'вне каталога')} (${n})</button>`
+    `<button class="preset-btn active" data-ch="__ALL__">Оба канала (${total})</button>` +
+    known.concat(rest).map(([c,n]) =>
+      `<button class="preset-btn" data-ch="${esc(c)}">${esc(c || 'без привязки к каналу')} (${n})</button>`
     ).join('');
   document.querySelectorAll('#channelButtons .preset-btn').forEach(b => b.onclick = () => {
     document.querySelectorAll('#channelButtons .preset-btn').forEach(x => x.classList.remove('active'));

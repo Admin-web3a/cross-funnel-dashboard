@@ -182,6 +182,9 @@ def build():
         "unclassified": len([v for v in videos if not v["cluster"]]),
         "unconfirmed": len([v for v in videos if reg.get(v["id"], {}).get("confirmed") != "yes"]),
         "catalogSize": len(catalog),
+        # Оба канала перечисляем всегда, даже если у канала пока нет ни одного
+        # лида: иначе кнопка фильтра пропадает и канал выглядит несуществующим.
+        "channels": [label for _, label in youtube.CHANNELS],
         "ytError": yt_error,
         "funnelStart": start_date,
         "preFunnel": len([v for v in videos if not v["postFunnel"]]),
